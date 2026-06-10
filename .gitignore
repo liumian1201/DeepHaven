@@ -1,0 +1,47 @@
+# ===== DeepHaven .gitignore =====
+
+# 极其重要：绝对禁止追踪私有开发目录（多重防御）
+_private/
+_private/**
+**/_private/**
+
+# 构建与打包产物
+dist/
+build/
+out/
+bin/
+__pycache__/
+*.pyc
+*.pyo
+
+# 本地环境/密钥/运行配置
+.env
+.env.local
+.env.*.local
+*.pem
+*.pfx
+*.secret
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 依赖与日志
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lock
+*.log
+*.tmp
+
+# AI 生成资源缓存
+assets/_generated/

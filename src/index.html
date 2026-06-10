@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Haven — 深海庇护所</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #131820;
+    --border: #1e2a3a;
+    --text: #c8d6e5;
+    --dim: #5c7a9a;
+    --accent: #39c0d4;
+    --warn: #e6a23c;
+    --danger: #e0555a;
+    --success: #4ecb71;
+    --gold: #f0c060;
+    --energy: #a78bfa;
+    --panel-header: #162030;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  #app {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── 标题栏 ── */
+  #header {
+    text-align: center;
+    padding: 8px 0;
+  }
+  #header h1 {
+    font-size: 24px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 2px;
+  }
+  #header .sub {
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  /* ── 天灾横幅 ── */
+  #disaster-banner {
+    background: linear-gradient(135deg, #1a1030, #0d1825);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #disaster-banner .dname { font-size: 18px; font-weight: bold; }
+  #disaster-banner .dinfo { font-size: 11px; color: var(--dim); }
+  #disaster-banner .day-num { font-size: 28px; font-weight: bold; color: var(--accent); }
+
+  /* ── 状态卡片 ── */
+  #stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .stat-card .label {
+    font-size: 10px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+  }
+  .stat-card .value { font-size: 18px; font-weight: bold; }
+  .stat-card .extra { font-size: 10px; color: var(--dim); margin-top: 1px; }
+
+  .sp { color: var(--gold); }
+  .energy { color: var(--energy); }
+  .health { color: var(--success); }
+  .danger-text { color: var(--danger); }
+  .warn-text { color: var(--warn); }
+
+  /* ── 进度条 ── */
+  .bar-wrap {
+    background: #1a2435;
+    border-radius: 4px;
+    height: 6px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  .bar-hp { background: var(--success); }
+  .bar-stamina { background: var(--accent); }
+  .bar-energy { background: var(--energy); }
+
+  /* ── 设施列表 ── */
+  #facilities-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  #facilities-box .box-title {
+    font-size: 10px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  /* ── 行动按钮 ── */
+  #actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  #actions button {
+    padding: 10px 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  #actions button:hover {
+    background: #1e2d40;
+    border-color: var(--accent);
+  }
+  #actions button:active { transform: scale(0.96); }
+
+  /* ── 日志区 ── */
+  #log-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.7;
+    flex: 1;
+  }
+  #log-box .log-entry {
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  #log-box .log-entry:last-child { border-bottom: none; }
+  #log-box .log-event { color: #f0c060; }
+  #log-box .log-rare { color: #ff6fd8; font-weight: bold; }
+  #log-box .log-bad { color: var(--danger); }
+  #log-box .log-build { color: var(--accent); }
+  #log-box .log-sp { color: var(--gold); }
+  #log-box .log-day { color: var(--dim); text-align: center; padding: 6px 0; font-weight: bold; border-bottom: 1px solid var(--border); }
+
+  /* ── 弹窗（建造/探索） ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    width: 90%;
+    max-width: 440px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .modal .item {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .modal .item:hover { background: #1e2d40; }
+  .modal .item .item-name { font-weight: bold; margin-bottom: 2px; }
+  .modal .item .item-cost { font-size: 11px; color: var(--dim); }
+  .modal .item .item-sp { font-size: 11px; color: var(--gold); }
+  .modal .close-btn {
+    display: block;
+    margin: 12px auto 0;
+    padding: 6px 20px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .modal .close-btn:hover { color: var(--text); border-color: var(--text); }
+
+  .danger-row { font-size: 11px; color: var(--warn); }
+  .bonus-row { font-size: 11px; color: var(--success); }
+
+  /* ── 底部按钮 ── */
+  #end-day-btn {
+    width: 100%;
+    padding: 14px;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+  #end-day-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 2px; }
+
+  /* 响应式 */
+  @media (max-width: 400px) {
+    #stats { grid-template-columns: repeat(2, 1fr); }
+    #actions button { font-size: 11px; padding: 8px 4px; }
+  }
+</style>
+<!-- 配置文件（数据驱动，改数值只改这些文件） -->
+<script src="config/disasters.js"></script>
+<script src="config/facilities.js"></script>
+<script src="config/locations.js"></script>
+<script src="config/events.js"></script>
+</head>
+<body>
+
+<div id="app">
+  <!-- 标题 -->
+  <div id="header">
+    <h1>🌊 Deep Haven</h1>
+    <div class="sub">深海庇护所 · 末日避难所生存</div>
+  </div>
+
+  <!-- 天灾横幅 -->
+  <div id="disaster-banner">
+    <div>
+      <div class="dname" id="dname">❄️ 极寒</div>
+      <div class="dinfo" id="dinfo"></div>
+    </div>
+    <div class="day-num" id="daynum">Day 1</div>
+  </div>
+
+  <!-- 状态 -->
+  <div id="stats">
+    <div class="stat-card"><div class="label">❤️ 健康</div><div class="value health" id="s-health">100/100</div><div class="bar-wrap"><div class="bar-fill bar-hp" id="bar-hp" style="width:100%"></div></div></div>
+    <div class="stat-card"><div class="label">⚡ 体力</div><div class="value" id="s-stamina">100/100</div><div class="bar-wrap"><div class="bar-fill bar-stamina" id="bar-stamina" style="width:100%"></div></div></div>
+    <div class="stat-card"><div class="label">💰 生存点 (SP)</div><div class="value sp" id="s-sp">0</div></div>
+    <div class="stat-card"><div class="label">⚡ 系统能量</div><div class="value energy" id="s-energy">100/100</div><div class="bar-wrap"><div class="bar-fill bar-energy" id="bar-energy" style="width:100%"></div></div></div>
+    <div class="stat-card"><div class="label">🍞 食物</div><div class="value" id="s-food">5天</div></div>
+    <div class="stat-card"><div class="label">💧 水</div><div class="value" id="s-water">7天</div></div>
+  </div>
+
+  <!-- 时间槽 -->
+  <div id="slots-box" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:8px 10px;text-align:center">
+    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">🕐 今日剩余行动</div>
+    <div id="s-slots" style="font-size:20px;letter-spacing:6px"></div>
+  </div>
+
+  <!-- 设施 -->
+  <div id="facilities-box">
+    <div class="box-title">🏗️ 设施</div>
+    <div id="s-facilities" style="font-size:12px;color:var(--dim)">仅有一个睡袋</div>
+    <div style="font-size:10px;color:var(--dim);margin-top:2px">舒适度: <span id="s-comfort" style="color:var(--text)">1</span></div>
+    <div style="font-size:10px;color:var(--dim)">材料: <span id="s-materials" style="color:var(--text)">无</span></div>
+  </div>
+
+  <!-- 行动按钮 -->
+  <div id="actions">
+    <button onclick="openExplore()">🗺️ 外出探索</button>
+    <button onclick="openBuild()">🏗️ 建造升级</button>
+    <button onclick="doRest()">😴 休息恢复</button>
+    <button onclick="openDispatch()" id="btn-dispatch" style="display:none">👥 派遣幸存者</button>
+  </div>
+
+  <!-- 结算按钮 -->
+  <button id="end-day-btn" onclick="endDay()">🌙 结束今天</button>
+
+  <!-- 日志 -->
+  <div id="log-box">
+    <div class="log-entry" style="color:var(--dim)">> 系统：当前避难所存活指数：3%。建议立即行动。</div>
+  </div>
+</div>
+
+<!-- 弹窗容器 -->
+<div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
+
+<script>
+// ==================== 游戏数据 ====================
+// （DISASTERS、FACILITIES、LOCATIONS、POS/NEG/RARE_EVENTS、MAT_NAMES、MAT_KEYS
+//   已从 config/*.js 外部加载，直接使用全局变量即可）
+
+// ==================== 游戏状态 ====================
+let G = {
+  day: 1,
+  health: 100, stamina: 100, maxStamina: 100,
+  food: 5, water: 7,
+  materials: { wood:0, scrap_iron:0, plastic:0, cloth:0, fuel:0 },
+  sp: 0, energy: 100, maxEnergy: 100, energyRegen: 5,
+  facilities: {},  // {id: level}，未建的设施视为 0 级
+  survivors: [],
+  maxSurvivors: 3,
+  actionSlots: 3, maxActionSlots: 3,
+  gameOver: false,
+};
+
+// ==================== 引擎函数 ====================
+function currentDisaster() {
+  const m = (Math.floor((G.day - 1) / 30) % 12) + 1;
+  return DISASTERS[m];
+}
+
+function calcComfort() {
+  let total = 1;  // 基础生存舒适度
+  for (const [fid, lv] of Object.entries(G.facilities)) {
+    const f = FACILITIES[fid];
+    if (lv > 0 && f && f.comfort) total += f.comfort[lv - 1];
+  }
+  return total;
+}
+
+function foodSavePct() {
+  // Phase 1 无厨房，返回 0
+  return 0;
+}
+
+function dailyHeal() {
+  // Phase 1 无医疗室，返回 0
+  return 0;
+}
+
+function dailyWaterOut() {
+  if (G.facilities.water) return FACILITIES.water.daily_water[G.facilities.water - 1];
+  return 0;
+}
+
+function calcDefense() {
+  if (G.facilities.defense) return FACILITIES.defense.defense[G.facilities.defense - 1];
+  return 0;
+}
+
+// ==================== UI 更新 ====================
+function updateUI() {
+  const d = currentDisaster();
+  document.getElementById('dname').textContent = d.name;
+  document.getElementById('dinfo').innerHTML = `⚠️ ${d.penalty}<br>🎁 ${d.bonus}`;
+  document.getElementById('daynum').textContent = `Day ${G.day}`;
+
+  document.getElementById('s-health').textContent = G.health + '/100';
+  document.getElementById('bar-hp').style.width = G.health + '%';
+  document.getElementById('s-stamina').textContent = G.stamina + '/' + G.maxStamina;
+  document.getElementById('bar-stamina').style.width = (G.stamina / G.maxStamina * 100) + '%';
+  document.getElementById('s-sp').textContent = G.sp;
+  document.getElementById('s-energy').textContent = G.energy + '/' + G.maxEnergy;
+  document.getElementById('bar-energy').style.width = (G.energy / G.maxEnergy * 100) + '%';
+  document.getElementById('s-food').textContent = G.food + '天';
+  document.getElementById('s-water').textContent = G.water + '天';
+  document.getElementById('s-comfort').textContent = calcComfort();
+
+  // 时间槽
+  const slotsHtml = '☀️'.repeat(G.actionSlots) + '🌙'.repeat(G.maxActionSlots - G.actionSlots);
+  document.getElementById('s-slots').textContent = slotsHtml || '—';
+
+  // 无时间槽时禁用行动按钮，强制结束
+  const btns = document.querySelectorAll('#actions button');
+  btns.forEach(b => { b.disabled = G.actionSlots <= 0; b.style.opacity = G.actionSlots <= 0 ? '0.4' : '1'; });
+  const endBtn = document.getElementById('end-day-btn');
+  if (G.actionSlots <= 0) {
+    endBtn.textContent = '🌙 时间耗尽 · 必须结束今天';
+    endBtn.style.borderColor = 'var(--warn)';
+    endBtn.style.color = 'var(--warn)';
+  } else {
+    endBtn.textContent = '🌙 结束今天';
+    endBtn.style.borderColor = 'var(--accent)';
+    endBtn.style.color = 'var(--accent)';
+  }
+
+  const mats = MAT_KEYS.filter(k => G.materials[k] > 0).map(k => `${MAT_NAMES[k]}:${G.materials[k]}`).join(' · ');
+  document.getElementById('s-materials').textContent = mats || '无';
+
+  const facs = Object.entries(G.facilities)
+    .filter(([,lv]) => lv > 0)
+    .map(([fid,lv]) => {
+      const f = FACILITIES[fid];
+      return f ? `${f.name}(${f.lvs[lv-1]})` : '';
+    }).filter(Boolean);
+  const defVal = calcDefense();
+  const defText = defVal > 0 ? ` 🛡️防御:${defVal}` : '';
+  document.getElementById('s-facilities').textContent = facs.length ? facs.join(' · ') + defText : '🛏️ 睡袋（仅能勉强过夜）' + defText;
+
+  // 幸存者按钮
+  document.getElementById('btn-dispatch').style.display = (G.day >= 30 && G.survivors.length > 0) ? '' : 'none';
+}
+
+function addLog(msg, cls = '') {
+  const box = document.getElementById('log-box');
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + cls;
+  div.textContent = msg;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function applyRewards(rewards) {
+  for (const [key, val] of Object.entries(rewards)) {
+    if (val === 0) continue;
+    if (key === 'sp') { G.sp += val; }
+    else if (key === 'health') { G.health = Math.max(0, Math.min(100, G.health + val)); }
+    else if (MAT_KEYS.includes(key)) { G.materials[key] = Math.max(0, G.materials[key] + val); }
+    else if (key === 'food') { G.food = Math.max(0, G.food + val); }
+    else if (key === 'water') { G.water = Math.max(0, G.water + val); }
+  }
+}
+
+// ==================== 弹窗 ====================
+function showModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+// ==================== 探索 ====================
+function openExplore() {
+  let html = '<h3>🗺️ 外出探索</h3>';
+  const d = currentDisaster();
+  html += `<div class="danger-row" style="text-align:center;margin-bottom:10px">⚠️ ${d.penalty} | 🎁 ${d.bonus}</div>`;
+  LOCATIONS.forEach((loc, i) => {
+    const stars = '★'.repeat(loc.danger);
+    html += `<div class="item" onclick="doExplore(${i})">
+      <div class="item-name">${loc.name} <span style="color:var(--warn);font-size:11px">${stars}</span></div>
+      <div class="item-cost">${loc.special ? '特产: ' + loc.special : ''}</div>
+    </div>`;
+  });
+  html += '<button class="close-btn" onclick="closeModal()">取消</button>';
+  showModal(html);
+}
+
+function doExplore(idx) {
+  closeModal();
+  if (G.actionSlots <= 0) return;
+  G.actionSlots -= 1;
+  const loc = LOCATIONS[idx];
+  const d = currentDisaster();
+  let staminaCost = 15 + loc.danger * 5;
+  if (d.name.includes('极寒')) staminaCost *= 2;
+
+  if (G.stamina < staminaCost) {
+    G.actionSlots += 1;  // 退还时间槽
+    addLog(`❌ 体力不足（需${staminaCost}，当前${G.stamina}）`, 'log-bad');
+    updateUI();
+    return;
+  }
+
+  G.stamina -= staminaCost;
+  addLog(`⏳ 正在探索 ${loc.name}...  体力 -${staminaCost}`);
+
+  // 基础收获
+  const rewards = {};
+  for (const [key, [lo, hi]] of Object.entries(loc.rewards)) {
+    const amount = randInt(lo, hi);
+    if (amount > 0) rewards[key] = amount;
+  }
+  applyRewards(rewards);
+  const rewardText = Object.entries(rewards).map(([k,v]) => `${k}+${v}`).join(', ');
+  if (rewardText) addLog(`📦 基础收获: ${rewardText}`);
+
+  // 事件
+  if (Math.random() < loc.eventRate) {
+    if (Math.random() < 0.8) {
+      const evt = pick(POS_EVENTS);
+      addLog(`✨ ${evt.text}`, 'log-event');
+      applyRewards(evt.r);
+    } else {
+      const evt = pick(NEG_EVENTS);
+      addLog(`⚠️ ${evt.text}`, 'log-bad');
+      applyRewards(evt.r);
+    }
+  }
+
+  // 稀有
+  if (Math.random() < 0.05) {
+    const rare = pick(RARE_EVENTS);
+    addLog(`💎 ${rare.text}`, 'log-rare');
+    applyRewards(rare.r);
+    if (rare.note) addLog(`📝 ${rare.note}`, 'log-rare');
+    if (rare.energyMax) {
+      G.maxEnergy += rare.energyMax;
+      G.energy += rare.energyMax;
+      addLog(`⚡ 系统能量上限永久 +${rare.energyMax}！`, 'log-rare');
+    }
+  }
+
+  updateUI();
+  if (G.actionSlots <= 0) { addLog('🌙 天色已晚，该结束今天了'); }
+}
+
+// ==================== 建造 ====================
+function openBuild() {
+  let html = '<h3>🏗️ 建造/升级设施</h3>';
+  const items = [];
+  for (const [fid, fac] of Object.entries(FACILITIES)) {
+    const curLv = G.facilities[fid] || 0;
+    if (curLv < fac.lvs.length) {
+      const nextLv = curLv + 1;
+      const ti = nextLv - 1;
+      const costs = Object.entries(fac.cost).map(([mat, amts]) => amts[ti] > 0 ? `${MAT_NAMES[mat] || mat}x${amts[ti]}` : '').filter(Boolean);
+      items.push({fid, fac, curLv, nextLv, ti, costs, spCost: fac.sp[ti]});
+    }
+  }
+
+  items.forEach((it, i) => {
+      const alreadyOwned = it.fid in G.facilities;  // 0 级也算已拥有
+      const status = alreadyOwned ? `升级 → Lv.${it.nextLv}` : '新建';
+    html += `<div class="item" onclick="doBuild(${i})">
+      <div class="item-name">${it.fac.name} <span style="font-size:11px;color:var(--accent)">${status}</span></div>
+      <div style="font-size:12px;color:var(--text)">→ ${it.fac.lvs[it.ti]}</div>
+      <div class="item-cost">🔧 ${it.costs.join(', ') || '免费'}</div>
+      <div class="item-sp">💰 或使用 SP: ${it.spCost}</div>
+    </div>`;
+  });
+  html += '<button class="close-btn" onclick="closeModal()">取消</button>';
+  showModal(html);
+  window._buildItems = items;
+}
+
+function doBuild(idx) {
+  closeModal();
+  if (G.actionSlots <= 0) return;
+  G.actionSlots -= 1;
+  const it = window._buildItems[idx];
+  if (!it) { G.actionSlots += 1; return; }
+
+  // 检查材料
+  let hasMats = true;
+  for (const [mat, amts] of Object.entries(it.fac.cost)) {
+    if (amts[it.ti] > 0 && (G.materials[mat] || 0) < amts[it.ti]) { hasMats = false; break; }
+  }
+
+  if (!hasMats) {
+    if (G.sp < it.spCost) {
+      addLog(`❌ 材料和 SP 都不足！`, 'log-bad');
+      updateUI();
+      return;
+    }
+    if (!confirm(`材料不足。消耗 ${it.spCost} SP 代替？\n当前 SP: ${G.sp}`)) { G.actionSlots += 1; return; }
+    G.sp -= it.spCost;
+    addLog(`💰 消耗 ${it.spCost} SP 代替材料`, 'log-sp');
+  } else {
+    for (const [mat, amts] of Object.entries(it.fac.cost)) {
+      G.materials[mat] = (G.materials[mat] || 0) - amts[it.ti];
+    }
+  }
+
+  G.facilities[it.fid] = it.nextLv;
+  addLog(`🏗️ ${it.fac.name} → ${it.fac.lvs[it.ti]} (Lv.${it.nextLv})`, 'log-build');
+  updateUI();
+  if (G.actionSlots <= 0) { addLog('🌙 天色已晚，该结束今天了'); }
+}
+
+// ==================== 休息 ====================
+function doRest() {
+  if (G.actionSlots <= 0) return;
+  G.actionSlots -= 1;
+  const before = G.stamina;
+  const recovery = 35;
+  G.stamina = Math.min(G.maxStamina, G.stamina + recovery);
+  const actual = G.stamina - before;
+  addLog(`😴 休息了一会儿，体力 +${actual}（${G.stamina}/${G.maxStamina}）`);
+  if (calcComfort() >= 10) addLog('🏠 舒适的环境让休息效果更好');
+  updateUI();
+  if (G.actionSlots <= 0) { addLog('🌙 天色已晚，该结束今天了'); }
+}
+
+// ==================== 幸存者派遣 ====================
+function openDispatch() {
+  let html = '<h3>👥 派遣幸存者</h3>';
+  G.survivors.forEach((sv, i) => {
+    const status = sv.status === 'idle' ? '🟢 待命' : '🔴 执行任务中';
+    html += `<div class="item" onclick="doDispatchSurvivor(${i})">
+      <div class="item-name">${sv.name} Lv.${sv.level} ${status}</div>
+      <div class="item-cost">ATK:${sv.atk} DEF:${sv.def} SPD:${sv.speed}</div>
+    </div>`;
+  });
+  html += '<button class="close-btn" onclick="closeModal()">取消</button>';
+  showModal(html);
+}
+
+function doDispatchSurvivor(svIdx) {
+  const sv = G.survivors[svIdx];
+  if (sv.status !== 'idle') { closeModal(); addLog(`❌ ${sv.name} 正在执行任务中`, 'log-bad'); return; }
+  closeModal();
+
+  let html = `<h3>派遣 ${sv.name} 前往...</h3>`;
+  LOCATIONS.forEach((loc, i) => {
+    html += `<div class="item" onclick="execDispatch(${svIdx}, ${i})">
+      <div class="item-name">${loc.name} ${'★'.repeat(loc.danger)}</div>
+    </div>`;
+  });
+  html += '<button class="close-btn" onclick="closeModal()">取消</button>';
+  showModal(html);
+}
+
+function execDispatch(svIdx, locIdx) {
+  closeModal();
+  const sv = G.survivors[svIdx];
+  const loc = LOCATIONS[locIdx];
+  const successRate = Math.max(20, 80 - loc.danger * 10 + sv.level * 5);
+  const rolled = randInt(1, 100);
+
+  addLog(`⏳ ${sv.name} 出发前往 ${loc.name}...`);
+
+  if (rolled <= successRate) {
+    const rewards = {};
+    for (const [key, [lo, hi]] of Object.entries(loc.rewards)) {
+      const v = randInt(lo, hi);
+      if (v > 0) rewards[key] = v;
+    }
+    rewards.sp = sv.level * randInt(1, 3);
+    applyRewards(rewards);
+    addLog(`✅ ${sv.name} 安全返回！Lv +1`, 'log-event');
+    sv.level += 1;
+  } else {
+    const dmg = randInt(5, 20);
+    sv.hp -= dmg;
+    addLog(`⚠️ ${sv.name} 遭遇危险，受伤返回 (HP -${dmg})`, 'log-bad');
+  }
+  updateUI();
+}
+
+// ==================== 每日结算 ====================
+function endDay() {
+  if (G.gameOver) return;
+
+  const d = currentDisaster();
+  addLog(`━━━ Day ${G.day} 结算 ━━━`, 'log-day');
+
+  // 过夜休息：体力回满
+  const staminaBefore = G.stamina;
+  G.stamina = G.maxStamina;
+  const overnightRecovery = G.stamina - staminaBefore;
+  if (overnightRecovery > 0) {
+    addLog(`🌙 一夜安睡，体力恢复至满值 (+${overnightRecovery})`);
+  }
+
+  let foodCost = 1;
+  let waterCost = 1;
+  if (d.name.includes('热浪')) waterCost = 2;
+
+  const savePct = foodSavePct();
+  if (savePct > 0) {
+    const saved = Math.floor(foodCost * savePct / 100);
+    foodCost -= saved;
+    addLog(`🍲 厨房节省了 ${saved} 食物`);
+  }
+
+  G.food -= foodCost;
+  G.water -= waterCost;
+  addLog(`🍞 食物 -${foodCost}（剩${G.food}天） | 💧 水 -${waterCost}（剩${G.water}天）`);
+
+  const wo = dailyWaterOut();
+  if (wo > 0) { G.water += wo; addLog(`💧 净水系统产水 +${wo}`); }
+
+  const heal = dailyHeal();
+  if (heal > 0) { G.health = Math.min(100, G.health + heal); addLog(`🏥 医疗室回血 +${heal}`); }
+
+  // 饥饿/口渴惩罚
+  if (G.food <= 0) { G.health -= 20; G.food = 0; addLog('⚠️ 断粮了！健康 -20', 'log-bad'); }
+  if (G.water <= 0) { G.health -= 15; G.water = 0; addLog('⚠️ 缺水了！健康 -15', 'log-bad'); }
+
+  // SP 产出
+  const comfort = calcComfort();
+  const baseSp = 10;
+  const comfortSp = comfort * 3;
+  G.sp += baseSp + comfortSp;
+  addLog(`💰 基础 SP +${baseSp} | 舒适度(${comfort}) SP +${comfortSp}`, 'log-sp');
+
+  // 能量恢复
+  if (G.energy < G.maxEnergy) {
+    G.energy = Math.min(G.maxEnergy, G.energy + G.energyRegen);
+    addLog(`⚡ 系统能量 +${G.energyRegen}（${G.energy}/${G.maxEnergy}）`);
+  }
+
+  // 体力已在上方过夜恢复中处理
+
+  // 死亡判定
+  if (G.health <= 0) {
+    G.gameOver = true;
+    addLog('💀 你死了。', 'log-bad');
+    addLog(`幸存天数: ${G.day} 天`, 'log-bad');
+    document.getElementById('end-day-btn').textContent = '💀 游戏结束';
+    document.getElementById('end-day-btn').disabled = true;
+    updateUI();
+    return;
+  }
+
+  G.day += 1;
+  G.actionSlots = G.maxActionSlots;  // 新的一天，时间槽重置
+  triggerMilestones();
+  updateUI();
+}
+
+function triggerMilestones() {
+  if (G.day === 3) addLog('🔓 日志模块已解锁！', 'log-event');
+  if (G.day === 7) addLog('🔓 改造模块已解锁！可为设施进行附魔改造。', 'log-event');
+  if (G.day === 14) addLog('🔓 制造模块已解锁！可用材料合成新物品。', 'log-event');
+  if (G.day === 21) addLog('📡 通讯模块已解锁！似乎接收到了外界信号……', 'log-event');
+  if (G.day === 30) {
+    G.maxSurvivors = 3;
+    const names = ['陈霜','老王','林雪','赵铁柱','苏晴'];
+    const name = pick(names);
+    G.survivors.push({name, level:1, hp:100, status:'idle', atk:randInt(5,10), def:randInt(3,8), speed:randInt(8,15)});
+    addLog(`🔓 招募模块已解锁！📡 ${name} 加入了你的避难所！`, 'log-event');
+  }
+  if (G.day === 60) { addLog('🔓 扩张模块已解锁！避难所可扩建至地下二层。', 'log-event'); G.maxSurvivors = 5; }
+  if (G.day === 90) addLog('🔓 系统深层功能正在觉醒……', 'log-rare');
+}
+
+// ==================== 工具 ====================
+function randInt(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ==================== 初始化 ====================
+updateUI();
+</script>
+</body>
+</html>
