@@ -1,0 +1,39 @@
+[
+  {
+    "id": "smelt_iron",
+    "name": "熔炼铁锭",
+    "station": "workbench",
+    "level": 1,
+    "output": {
+      "iron": 1
+    },
+    "inputs": {
+      "scrap_iron": 3
+    }
+  },
+  {
+    "id": "burn_charcoal",
+    "name": "烧制木炭",
+    "station": "workbench",
+    "level": 1,
+    "output": {
+      "charcoal": 1
+    },
+    "inputs": {
+      "wood": 2
+    }
+  },
+  {
+    "id": "craft_purifier_t1",
+    "name": "组装净水器",
+    "station": "workbench",
+    "level": 1,
+    "output": {
+      "water_purifier_t1": 1
+    },
+    "inputs": {
+      "charcoal": 2,
+      "cloth": 4
+    }
+  }
+]

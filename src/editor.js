@@ -3,7 +3,7 @@ var DATA={items:{},recipes:[],facilities:{},locations:{},disasters:{},events:{po
 var currentTab="items",selectedKey=null;
 var CATEGORIES=["物资","加工品","武器","防具","设施","消耗品","食物","药品","书籍","工具"];
 var editPanel=document.getElementById("edit-panel");
-var FILES=["items","recipes","facilities","locations","disasters","events","effects","system"];
+var FILES=["items","recipes","facilities","locations","disasters","events","system"];
 var loaded=0;
 
 FILES.forEach(function(f){
@@ -115,7 +115,7 @@ function renderList(){
   }
   else if(currentTab==="recipes"){
     h2+="<div style=\"padding:4px 0;font-size:10px;margin-bottom:4px\"><button class=\"btn-sm green\" onclick=\"addRecipe()\">＋ 新建配方</button></div>";
-    d.forEach(function(r,i){var outKs=Object.keys(r.output||{});var out=outKs.length?"> "+outKs.map(function(k){return h(DATA.items[k]?.name||k)+(r.output[k]>1?" x"+r.output[k]:"")}).join("+"):"";h2+="<div class=\"list-item"+(selectedKey===i?" sel":"")+"\" onclick=\"sel("+i+")\"><span class=\"li-name\">"+(r.name||r.id)+"</span><span class=\"li-meta\">"+out+"</span><button class=\"btn-sm danger\" onclick=\"event.stopPropagation();D_recipes("+i+")\" title=\"删除\" style=\"padding:0 5px;font-size:10px;line-height:1.4\">🗑</button></div>"});
+    d.forEach(function(r,i){var outKs=Object.keys(r.output||{});var out=outKs.length?"> "+outKs.map(function(k){return h(DATA.items[k]?.name||k)+(r.output[k]>1?" x"+r.output[k]:"")}).join("+"):(r.output_facility?"> 🏗️ "+h(DATA.facilities[r.output_facility]?.name||r.output_facility):"");h2+="<div class=\"list-item"+(selectedKey===i?" sel":"")+"\" onclick=\"sel("+i+")\"><span class=\"li-name\">"+(r.name||r.id)+"</span><span class=\"li-meta\">"+out+"</span><button class=\"btn-sm danger\" onclick=\"event.stopPropagation();D_recipes("+i+")\" title=\"删除\" style=\"padding:0 5px;font-size:10px;line-height:1.4\">🗑</button></div>"});
   }
   else if(currentTab==="facilities"){
     h2+="<div style=\"padding:4px 0;font-size:10px;margin-bottom:4px\"><button class=\"btn-sm green\" onclick=\"addFacility()\">＋ 新建设施</button></div>";
@@ -135,12 +135,8 @@ function renderList(){
       h2+="</div>";
     });
   }
-  else if(currentTab==="effects"){
-    h2+="<div style=\"padding:4px 0;font-size:10px;margin-bottom:4px\"><button class=\"btn-sm green\" onclick=\"addEffect()\">＋ 新建效果</button></div>";
-    Object.entries(d).forEach(function(e){h2+="<div class=\"list-item"+(selectedKey===e[0]?" sel":"")+"\" onclick=\"sel(\'"+q(e[0])+"\')\"><span class=\"li-name\">"+e[1].name+"</span><span class=\"li-meta\">"+e[0]+"</span><button class=\"btn-sm danger\" onclick=\"event.stopPropagation();D_effects(\'"+q(e[0])+"\')\" title=\"删除\" style=\"padding:0 5px;font-size:10px;line-height:1.4\">🗑</button></div>"});
-  }
   else if(currentTab==="system"){
-    Object.entries(d).forEach(function(e){h2+="<div class=\"list-item"+(selectedKey===e[0]?" sel":"")+"\" onclick=\"sel(\'"+q(e[0])+"\')\"><span class=\"li-name\">"+e[1].name+"</span><span class=\"li-meta\">Lv."+(e[1].current||1)+"/"+e[1].levels.length+"</span></div>"});
+    Object.entries(d).forEach(function(e){var meta=e[1].levels?"Lv."+(e[1].current||1)+"/"+e[1].levels.length:(e[1].fields?e[1].fields.length+"项":"");h2+="<div class=\"list-item"+(selectedKey===e[0]?" sel":"")+"\" onclick=\"sel(\'"+q(e[0])+"\')\"><span class=\"li-name\">"+e[1].name+"</span><span class=\"li-meta\">"+meta+"</span></div>"});
   }
   document.getElementById("list-panel").innerHTML=h2||"<div class=\"empty-hint\" style=\"font-size:12px;padding:20px\">无数据</div>";
 }
@@ -155,7 +151,6 @@ function renderEdit(){
   else if(currentTab==="locations")R_locations();
   else if(currentTab==="disasters")R_disasters();
   else if(currentTab==="events")R_events();
-  else if(currentTab==="effects")R_effects();
   else if(currentTab==="system")R_system();
 }
 
@@ -220,7 +215,8 @@ function R_items(){
   editPanel.innerHTML=h2;
 }
 
-function kvEff(key,val){return"<div class=\"kv-row\"><select class=\"stat-key\">"+effOpts(key)+"</select><input type=\"number\" class=\"stat-val\" value=\""+(val||0)+"\" step=\"any\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"}
+function statOpts(id){var keys=["atk","def","range","speed","ammo","heal","thirst","hunger"];return keys.map(function(k){return"<option value=\""+k+"\""+(k===id?" selected":"")+">"+k+"</option>"}).join("")}
+function kvEff(key,val){return"<div class=\"kv-row\"><input class=\"stat-key\" value=\""+h(key||"")+"\" placeholder=\"属性名\" style=\"flex:1;min-width:60px;padding:4px 6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px;border-radius:4px\" list=\"stat-list\"><datalist id=\"stat-list\">"+statOpts(key)+"</datalist><input type=\"number\" class=\"stat-val\" value=\""+(val||0)+"\" step=\"any\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"}
 function addStat(){document.getElementById("stats-area").insertAdjacentHTML("beforeend",kvEff("",0))}
 
 function S_items(oldKey){
@@ -242,15 +238,19 @@ function R_recipes(){
   var i=selectedKey,isNew=(i>=DATA.recipes.length);
     var r=isNew?{id:"",name:"",inputs:{},output:{},station:"workbench",level:1}:DATA.recipes[i]||{};
   if(typeof r.output==="string")r.output={[r.output]:r.outQty||1};
+  var isFac=r.output_facility?true:false;
   var h2="<h3 style=\"color:var(--accent);margin-bottom:12px\">"+(isNew?"🔨 新建配方":"🔨 编辑: "+h(r.name||r.id))+"</h3>";
   h2+="<div class=\"field-row\"><div class=\"field\"><label>ID</label><input id=\"f-id\" value=\""+h(r.id||"")+"\"></div><div class=\"field wide\"><label>名称</label><input id=\"f-name\" value=\""+h(r.name||"")+"\"></div></div>";
   h2+="<div class=\"field-row\"><div class=\"field wide\"><label>工坊</label><select id=\"f-station\">"+Object.keys(DATA.facilities).map(function(fk){return"<option value=\""+fk+"\""+(r.station===fk?" selected":"")+">"+h(DATA.facilities[fk].name||fk)+"</option>"}).join("")+"</select></div><div class=\"field\"><label>工坊等级</label><input id=\"f-level\" type=\"number\" value=\""+(r.level||1)+"\" min=\"1\"></div></div>";
   h2+="<div class=\"section-title\">📥 输入材料</div><div id=\"inp-area\">";
   Object.entries(r.inputs||{}).forEach(function(ie){h2+=kvInp(ie[0],ie[1])});
       h2+="</div>"+addBtn("inp-area","inp","添加材料");
-      h2+="<div class=\"section-title\">📤 产出</div><div id=\"out-area\">";
+      h2+="<div class=\"section-title\">📤 产出</div>";
+      h2+="<div style=\"display:flex;gap:12px;margin-bottom:8px;font-size:12px\"><label><input type=\"radio\" name=\"out-type\" onchange=\"toggleOutType()\" value=\"item\""+(isFac?"":" checked")+"> 物品</label><label><input type=\"radio\" name=\"out-type\" onchange=\"toggleOutType()\" value=\"facility\""+(isFac?" checked":"")+"> 设施</label></div>";
+      h2+="<div id=\"out-item-wrap\" style=\"display:"+(isFac?"none":"block")+"\"><div id=\"out-area\">";
   Object.entries(r.output||{}).forEach(function(oe){h2+=kvOut(oe[0],oe[1])});
-      h2+="</div>"+addBtn("out-area","out","添加产出");
+      h2+="</div>"+addBtn("out-area","out","添加产出")+"</div>";
+      h2+="<div id=\"out-fac-wrap\" style=\"display:"+(isFac?"block":"none")+"\"><select id=\"f-out-fac\">"+Object.keys(DATA.facilities).map(function(fk){return"<option value=\""+fk+"\""+(r.output_facility===fk?" selected":"")+">"+h(DATA.facilities[fk].name||fk)+"</option>"}).join("")+"</select></div>";
   h2+="<div style=\"margin-top:16px;display:flex;gap:8px\"><button class=\"btn save\" onclick=\"S_recipes("+i+")\">💾 保存</button>";
   if(!isNew)h2+="<button class=\"btn danger\" onclick=\"D_recipes("+i+")\">🗑 删除</button>";
   h2+="</div>";editPanel.innerHTML=h2;
@@ -265,7 +265,7 @@ function addInpRow(areaId,type,li){
   if(type==="inp") row=kvInp("","");
   else if(type==="out") row=kvOut("","");
   else if(type==="cost") row="<div class=\"kv-row\">"+catItemHTML("","lv-"+li+"-")+"<input type=\"number\" class=\"lv-"+li+"-cv\" value=\"1\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">\u2715</span></div>";
-  else if(type==="eff") row="<div class=\"kv-row\"><select class=\"lv-"+li+"-ek\">"+effOpts("")+"</select><input type=\"number\" class=\"lv-"+li+"-ev\" value=\"0\" step=\"any\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">\u2715</span></div>";
+  else if(type==="do") row="<div class=\"kv-row\">"+catItemHTML("","lv-"+li+"-do-")+"<input type=\"number\" class=\"lv-"+li+"-dov\" value=\"1\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">\u2715</span></div>";
   else if(type==="loot") row=kvLoot("","","");
   else if(type==="rew") row=eventRewRow();
   else if(type==="syscost") row="<div class=\"kv-row\">"+catItemHTML("","lv-"+li+"-")+"<input type=\"number\" class=\"lv-"+li+"-cv\" value=\"1\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">\u2715</span></div>";
@@ -278,16 +278,18 @@ function addBtn(areaId,type,label,li){
 function S_recipes(i){
   var inp={},iks=document.querySelectorAll(".inp-item"),ivs=document.querySelectorAll(".inp-val");
   for(var j=0;j<iks.length;j++){if(iks[j].value)inp[iks[j].value]=(parseInt(ivs[j].value)||1)}
-  var out={},oks=document.querySelectorAll(".out-item"),ovs=document.querySelectorAll(".out-val");
-  for(var j=0;j<oks.length;j++){if(oks[j].value)out[oks[j].value]=(parseInt(ovs[j].value)||1)}
-      var r={id:document.getElementById("f-id").value.trim(),name:document.getElementById("f-name").value.trim(),station:document.getElementById("f-station").value,level:parseInt(document.getElementById("f-level").value)||1,output:out,inputs:inp};
+  var isFac=document.querySelector("input[name=\"out-type\"]:checked")?.value==="facility";
+  var r={id:document.getElementById("f-id").value.trim(),name:document.getElementById("f-name").value.trim(),station:document.getElementById("f-station").value,level:parseInt(document.getElementById("f-level").value)||1,inputs:inp};
+  if(isFac){r.output_facility=document.getElementById("f-out-fac").value;delete r.output;}
+  else{var out={},oks=document.querySelectorAll(".out-item"),ovs=document.querySelectorAll(".out-val");for(var j=0;j<oks.length;j++){if(oks[j].value)out[oks[j].value]=(parseInt(ovs[j].value)||1)}r.output=out;delete r.output_facility;}
   if(!r.id){msg("❌ ID不能为空");return}
   if(i>=DATA.recipes.length)DATA.recipes.push(r);else DATA.recipes[i]=r;
   selectedKey=i;renderAll();saveOne("recipes",function(){msg("✅ 配方已保存")},function(e){msg("❌ 配方保存失败: "+e)});
 }
+function toggleOutType(){renderEdit()}
 function D_recipes(i){if(confirm("确定删除？")){DATA.recipes.splice(i,1);selectedKey=null;renderAll();saveOne("recipes");msg("🗑 已删除")}}
 
-function addFacility(){var n="new_fac_"+Date.now();DATA.facilities[n]={name:"新设施",lvs:[],sp:[],cost:{},effects:{}};selectedKey=n;renderAll()}
+function addFacility(){var n="new_fac_"+Date.now();DATA.facilities[n]={name:"新设施",lvs:[],sp:[],cost:{}};selectedKey=n;renderAll()}
 function R_facilities(){
   var fid=selectedKey,f=DATA.facilities[fid]||{};
   var h2="<h3 style=\"color:var(--accent);margin-bottom:12px\">🏗️ 编辑设施: "+h(fid)+"</h3>";
@@ -302,27 +304,29 @@ function R_facilities(){
 function lvBlock(fid,li,f){
   var lv=li+1,h2="<div class=\"lv-block\"><div class=\"lv-title\">Lv."+lv+"</div>";
   h2+="<div class=\"field\"><label>等级名</label><input class=\"lv-name\" value=\""+h(f.lvs[li]||"")+"\"></div>";
-  h2+="<div class=\"field\"><label>SP花费</label><input type=\"number\" class=\"lv-sp\" value=\""+(f.sp?.[li]||0)+"\"></div>";
   h2+="<div style=\"font-size:11px;color:var(--dim);margin:4px 0\">建造成本:</div><div id=\"lv-cost-"+li+"\">";
   Object.entries(f.cost||{}).forEach(function(ce){h2+="<div class=\"kv-row\">"+catItemHTML(ce[0],"lv-"+li+"-")+"<input type=\"number\" class=\"lv-"+li+"-cv\" value=\""+(ce[1]?.[li]||0)+"\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"});
   h2+="</div>"+addBtn("lv-cost-"+li,"cost","添加成本",li);
-  h2+="<div style=\"font-size:11px;color:var(--dim);margin:4px 0\">效果:</div><div id=\"lv-eff-"+li+"\">";
-  Object.entries(f.effects||{}).forEach(function(ee){h2+="<div class=\"kv-row\"><select class=\"lv-"+li+"-ek\">"+effOpts(ee[0])+"</select><input type=\"number\" class=\"lv-"+li+"-ev\" value=\""+(ee[1]?.[li]||0)+"\" step=\"any\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"});
-  h2+="</div>"+addBtn("lv-eff-"+li,"eff","添加效果",li)+"</div>";
+  h2+="<div style=\"font-size:11px;color:var(--dim);margin:4px 0\">每日产出:</div><div id=\"lv-out-"+li+"\">";
+  Object.entries(f.daily_output||{}).forEach(function(de){h2+="<div class=\"kv-row\">"+catItemHTML(de[0],"lv-"+li+"-do-")+"<input type=\"number\" class=\"lv-"+li+"-dov\" value=\""+(de[1]?.[li]||0)+"\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"});
+  h2+="</div>"+addBtn("lv-out-"+li,"do","添加产出",li);
+  h2+="<div class=\"field\" style=\"margin-top:6px\"><label>每日使用上限 (0=不限)</label><input type=\"number\" class=\"lv-limit\" value=\""+(f.daily_limit?.[li]||0)+"\" min=\"0\"></div>";
+  h2+="</div>";
   return h2;
 }
 
-function addLv(){var f=DATA.facilities[selectedKey];if(!f.lvs)f.lvs=[];if(!f.sp)f.sp=[];f.lvs.push("");f.sp.push(0);renderEdit()}
+function addLv(){var f=DATA.facilities[selectedKey];if(!f.lvs)f.lvs=[];f.lvs.push("");renderEdit()}
 function S_facilities(fid){
   var f=DATA.facilities[fid];f.name=document.getElementById("f-name").value.trim();
-  var nms=document.querySelectorAll(".lv-name"),sps=document.querySelectorAll(".lv-sp");
-  f.lvs=[];f.sp=[];nms.forEach(function(e){f.lvs.push(e.value)});sps.forEach(function(e){f.sp.push(parseInt(e.value)||0)});
-  f.cost={};f.effects={};
+  var nms=document.querySelectorAll(".lv-name");
+  f.lvs=[];nms.forEach(function(e){f.lvs.push(e.value)});
+  f.cost={};f.daily_output={};f.daily_limit=[];
   for(var li=0;li<f.lvs.length;li++){
   cks=document.querySelectorAll(".lv-"+li+"--item"),cvs=document.querySelectorAll(".lv-"+li+"-cv");
     for(var ci=0;ci<cks.length;ci++){if(!cks[ci].value)continue;if(!f.cost[cks[ci].value])f.cost[cks[ci].value]=Array(f.lvs.length).fill(0);f.cost[cks[ci].value][li]=parseInt(cvs[ci].value)||0}
-    var eks=document.querySelectorAll(".lv-"+li+"-ek"),evs=document.querySelectorAll(".lv-"+li+"-ev");
-    for(var ei=0;ei<eks.length;ei++){if(!eks[ei].value)continue;if(!f.effects[eks[ei].value])f.effects[eks[ei].value]=Array(f.lvs.length).fill(0);f.effects[eks[ei].value][li]=parseFloat(evs[ei].value)||0}
+    var dks=document.querySelectorAll(".lv-"+li+"-do--item"),dvs=document.querySelectorAll(".lv-"+li+"-dov");
+    for(var di=0;di<dks.length;di++){if(!dks[di].value)continue;if(!f.daily_output[dks[di].value])f.daily_output[dks[di].value]=Array(f.lvs.length).fill(0);f.daily_output[dks[di].value][li]=parseInt(dvs[di].value)||0}
+    var lmt=document.querySelectorAll(".lv-limit")[li];if(lmt)f.daily_limit[li]=parseInt(lmt.value)||0;
   }
   saveOne("facilities",function(){msg("✅ 设施已保存")},function(e){msg("❌ 设施保存失败: "+e)});
 }
@@ -451,46 +455,49 @@ function S_events(type,i){
 }
 function D_events(type,i){if(confirm("确定删除？")){DATA.events[type].splice(i,1);selectedKey=null;renderAll();saveOne("events");msg("🗑 已删除")}}
 
-function addEffect(){var n="new_effect_"+Date.now();DATA.effects[n]={name:"新效果",desc:""};selectedKey=n;renderAll()}
-function R_effects(){
-  var eid=selectedKey,ef=DATA.effects[eid]||{};
-  var h2="<h3 style=\"color:var(--accent);margin-bottom:12px\">⚡ 编辑效果</h3>";
-  h2+="<div class=\"field\"><label>ID</label><input id=\"f-id\" value=\""+h(eid)+"\" readonly></div>";
-  h2+="<div class=\"field\"><label>名称</label><input id=\"f-name\" value=\""+h(ef.name||"")+"\"></div>";
-  h2+="<div class=\"field\"><label>描述</label><input id=\"f-desc\" value=\""+h(ef.desc||"")+"\"></div>";
-  h2+="<div style=\"margin-top:16px;display:flex;gap:8px\"><button class=\"btn save\" onclick=\"S_effects(\'"+q(eid)+"\')\">💾 保存</button><button class=\"btn danger\" onclick=\"D_effects(\'"+q(eid)+"\')\">🗑 删除</button></div>";
-  editPanel.innerHTML=h2;
-}
-function S_effects(eid){DATA.effects[eid]={name:document.getElementById("f-name").value.trim(),desc:document.getElementById("f-desc").value.trim()};renderAll();saveOne("effects",function(){msg("✅ 效果已保存")},function(e){msg("❌ 效果保存失败: "+e)})}
-function D_effects(eid){if(confirm("确定删除？")){delete DATA.effects[eid];selectedKey=null;renderAll();saveOne("effects");msg("🗑 已删除")}}
-
 function R_system(){
   var sid=selectedKey,sys=DATA.system[sid]||{};
   var h2="<h3 style=\"color:var(--accent);margin-bottom:12px\">⚙️ "+h(sys.name||sid)+"</h3>";
   h2+="<div class=\"field\"><label>名称</label><input id=\"f-name\" value=\""+h(sys.name||"")+"\"></div>";
   h2+="<div class=\"field\"><label>描述</label><input id=\"f-desc\" value=\""+h(sys.desc||"")+"\"></div>";
-  h2+="<div class=\"section-title\">📊 等级配置</div>";
-  (sys.levels||[]).forEach(function(lv,li){
-    var attrs=[];Object.entries(lv).forEach(function(ve){if(ve[0]!=="level"&&ve[0]!=="cost")attrs.push(ve)});
-    h2+="<div class=\"lv-block\"><div class=\"lv-title\">Lv."+lv.level+"</div>";
-    h2+="<div class=\"field-row\">";
-    attrs.forEach(function(a){h2+="<div class=\"field\"><label>"+a[0]+"</label><input class=\"lv-"+li+"-a\" data-key=\""+a[0]+"\" type=\"number\" value=\""+(a[1]||0)+"\" step=\"any\"></div>"});
+  // Flat fields mode
+  if(sys.fields){
+    h2+="<div class=\"section-title\">📝 参数配置</div><div id=\"sys-fields\">";
+    sys.fields.forEach(function(fe){h2+="<div class=\"field-row\"><div class=\"field wide\"><label>"+h(fe.label||fe.key)+"</label><input class=\"sys-fv\" data-key=\""+fe.key+"\" type=\"number\" value=\""+fe.value+"\" step=\"any\"></div></div>"});
     h2+="</div>";
-    h2+="<div style=\"font-size:10px;color:var(--dim);margin:4px 0\">升级消耗:</div><div id=\"sys-cost-"+li+"\">";
-    Object.entries(lv.cost||{}).forEach(function(ce){h2+="<div class=\"kv-row\">"+catItemHTML(ce[0],"lv-"+li+"-")+"<input type=\"number\" class=\"lv-"+li+"-cv\" value=\""+ce[1]+"\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"});
-    h2+="</div>"+addBtn("sys-cost-"+li,"syscost","添加消耗",li)+"</div></div>";
-  });
+  }
+  // Levels mode
+  else if(sys.levels){
+    h2+="<div class=\"section-title\">📊 等级配置</div>";
+    (sys.levels||[]).forEach(function(lv,li){
+      var attrs=[];Object.entries(lv).forEach(function(ve){if(ve[0]!=="level"&&ve[0]!=="cost"&&ve[0]!=="sp_cost")attrs.push(ve)});
+      h2+="<div class=\"lv-block\"><div class=\"lv-title\">Lv."+lv.level+"</div>";
+      h2+="<div class=\"field\" style=\"margin-bottom:6px\"><label>SP消耗</label><input type=\"number\" class=\"lv-"+li+"-sp\" value=\""+(lv.sp_cost||0)+"\" min=\"0\"></div>";
+      h2+="<div class=\"field-row\">";
+      attrs.forEach(function(a){h2+="<div class=\"field\"><label>"+a[0]+"</label><input class=\"lv-"+li+"-a\" data-key=\""+a[0]+"\" type=\"number\" value=\""+(a[1]||0)+"\" step=\"any\"></div>"});
+      h2+="</div>";
+      h2+="<div style=\"font-size:10px;color:var(--dim);margin:4px 0\">材料消耗:</div><div id=\"sys-cost-"+li+"\">";
+      Object.entries(lv.cost||{}).forEach(function(ce){h2+="<div class=\"kv-row\">"+catItemHTML(ce[0],"lv-"+li+"-")+"<input type=\"number\" class=\"lv-"+li+"-cv\" value=\""+ce[1]+"\" min=\"0\" style=\"flex:0.6;min-width:45px\"><span class=\"kv-remove\" onclick=\"rmKv(this)\">✕</span></div>"});
+      h2+="</div>"+addBtn("sys-cost-"+li,"syscost","添加消耗",li)+"</div></div>";
+    });
+  }
   h2+="<div style=\"margin-top:16px\"><button class=\"btn save\" onclick=\"S_system(\'"+q(sid)+"\')\">💾 保存</button></div>";
   editPanel.innerHTML=h2;
 }
 function S_system(sid){
   var sys=DATA.system[sid];
   sys.name=document.getElementById("f-name").value.trim();sys.desc=document.getElementById("f-desc").value.trim();
-  for(var li=0;li<sys.levels.length;li++){
-    var lv=sys.levels[li];
-    document.querySelectorAll(".lv-"+li+"-a").forEach(function(el){lv[el.dataset.key]=parseFloat(el.value)||0});
-    lv.cost={};var cks=document.querySelectorAll(".lv-"+li+"--item"),cvs=document.querySelectorAll(".lv-"+li+"-cv");
-    for(var ci=0;ci<cks.length;ci++){if(cks[ci].value)lv.cost[cks[ci].value]=parseInt(cvs[ci].value)||0}
+  if(sys.fields){
+    document.querySelectorAll(".sys-fv").forEach(function(el){var f=sys.fields.find(function(x){return x.key===el.dataset.key});if(f)f.value=parseFloat(el.value)||0});
+  }
+  else if(sys.levels){
+    for(var li=0;li<sys.levels.length;li++){
+      var lv=sys.levels[li];
+      var spEl=document.querySelectorAll(".lv-"+li+"-sp")[0];if(spEl)lv.sp_cost=parseInt(spEl.value)||0;
+      document.querySelectorAll(".lv-"+li+"-a").forEach(function(el){lv[el.dataset.key]=parseFloat(el.value)||0});
+      lv.cost={};var cks=document.querySelectorAll(".lv-"+li+"--item"),cvs=document.querySelectorAll(".lv-"+li+"-cv");
+      for(var ci=0;ci<cks.length;ci++){if(cks[ci].value)lv.cost[cks[ci].value]=parseInt(cvs[ci].value)||0}
+    }
   }
   saveOne("system",function(){msg("✅ 系统已保存")},function(e){msg("❌ 系统保存失败: "+e)});
 }

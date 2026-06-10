@@ -1,0 +1,40 @@
+{
+  "well": {
+    "name": "🕳️ 水井",
+    "lvs": [
+      ""
+    ],
+    "sp": [
+      0
+    ],
+    "cost": {
+      "stone": [
+        20
+      ],
+      "metal_block": [
+        5
+      ]
+    },
+    "daily_output": {
+      "dirty_water": [
+        1
+      ]
+    }
+  },
+  "workbench": {
+    "name": "⚙️ 工作台",
+    "lvs": [
+      ""
+    ],
+    "sp": [
+      0
+    ],
+    "cost": {}
+  },
+  "purifier": {
+    "name": "🚰 净水器",
+    "lvs": [],
+    "sp": [],
+    "cost": {}
+  }
+}

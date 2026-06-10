@@ -1,0 +1,27 @@
+[
+  {
+    "id": "craft_wire",
+    "name": "制作电线",
+    "inputs": {
+      "metal_block": 1,
+      "rubber": 1
+    },
+    "output": {
+      "wire": 1
+    },
+    "station": "workbench",
+    "level": 1
+  },
+  {
+    "id": "purify_water",
+    "name": "净化污水",
+    "inputs": {
+      "dirty_water": 3
+    },
+    "output": {
+      "clean_water": 1
+    },
+    "station": "purifier",
+    "level": 1
+  }
+]

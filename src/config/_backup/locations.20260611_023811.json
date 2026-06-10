@@ -1,0 +1,102 @@
+[
+  {
+    "id": "supermarket",
+    "name": "🏪 废弃超市",
+    "danger": 1,
+    "event_rate": 0.25,
+    "special": null,
+    "loot": [
+      {
+        "item": "plastic",
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "cloth",
+        "min": 1,
+        "max": 2
+      }
+    ]
+  },
+  {
+    "id": "police",
+    "name": "🚔 警察局",
+    "danger": 2,
+    "loot": [
+      {
+        "item": "scrap_iron",
+        "min": 2,
+        "max": 4
+      },
+      {
+        "item": "cloth",
+        "min": 1,
+        "max": 2
+      }
+    ],
+    "special": "有概率找到弹药",
+    "event_rate": 0.3
+  },
+  {
+    "id": "hospital",
+    "name": "🏥 中心医院",
+    "danger": 3,
+    "loot": [
+      {
+        "item": "plastic",
+        "min": 2,
+        "max": 3
+      },
+      {
+        "item": "cloth",
+        "min": 2,
+        "max": 3
+      },
+      {
+        "item": "fuel",
+        "min": 1,
+        "max": 2
+      }
+    ],
+    "special": "抗生素（极稀有）",
+    "event_rate": 0.25
+  },
+  {
+    "id": "school",
+    "name": "🏫 废弃学校",
+    "danger": 1,
+    "event_rate": 0.3,
+    "special": "书籍（解锁配方）",
+    "loot": [
+      {
+        "item": "wood",
+        "min": 2,
+        "max": 4
+      },
+      {
+        "item": "cloth",
+        "min": 1,
+        "max": 2
+      }
+    ]
+  },
+  {
+    "id": "factory",
+    "name": "🏭 工业区",
+    "danger": 4,
+    "loot": [
+      {
+        "item": "scrap_iron",
+        "min": 3,
+        "max": 6
+      },
+      {
+        "item": "wood",
+        "min": 1,
+        "max": 4
+      }
+    ],
+    "special": "零件、电机",
+    "event_rate": 0.4
+  }
+]

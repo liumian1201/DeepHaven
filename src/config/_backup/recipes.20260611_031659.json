@@ -27,25 +27,13 @@
   {
     "id": "build_well",
     "name": "建造水井",
-    "station": "workbench",
-    "level": 1,
     "inputs": {
       "stone": 10,
       "wood": 5,
       "metal_block": 2
     },
-    "output_facility": "well"
-  },
-  {
-    "id": "build_purifier",
-    "name": "建造净水器",
     "station": "workbench",
     "level": 1,
-    "inputs": {
-      "stone": 5,
-      "plastic": 3,
-      "metal_block": 2
-    },
-    "output_facility": "purifier"
+    "output_facility": "well"
   }
 ]

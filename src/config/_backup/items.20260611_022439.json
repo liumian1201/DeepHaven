@@ -1,0 +1,53 @@
+{
+  "wood": {
+    "name": "🪵 木材",
+    "category": "物资",
+    "size": 5,
+    "stack": 999
+  },
+  "scrap_iron": {
+    "name": "🔩 废铁",
+    "category": "物资",
+    "size": 3,
+    "stack": 999
+  },
+  "plastic": {
+    "name": "🧴 塑料",
+    "category": "物资",
+    "size": 2,
+    "stack": 999
+  },
+  "cloth": {
+    "name": "🧵 布料",
+    "category": "物资",
+    "size": 2,
+    "stack": 999
+  },
+  "fuel": {
+    "name": "⛽ 燃料",
+    "category": "物资",
+    "size": 8,
+    "stack": 999
+  },
+  "iron": {
+    "name": "⚙️ 铁锭",
+    "category": "加工品",
+    "size": 5,
+    "stack": 500
+  },
+  "charcoal": {
+    "name": "🪨 木炭",
+    "category": "加工品",
+    "size": 3,
+    "stack": 500
+  },
+  "water_purifier_t1": {
+    "name": "💧 简易净水器",
+    "category": "设施/净水",
+    "size": 50,
+    "stack": 10,
+    "stats": {
+      "water_out": 0.5
+    }
+  }
+}

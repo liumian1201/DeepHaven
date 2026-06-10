@@ -79,20 +79,24 @@
     "levels": [
       {
         "level": 1,
-        "capacity": 100,
-        "sp_cost": 0,
-        "cost": {}
+        "capacity": 100
       },
       {
         "level": 2,
         "capacity": 150,
-        "cost": {},
+        "cost": {
+          "iron": 10,
+          "plastic": 5
+        },
         "sp_cost": 150
       },
       {
         "level": 3,
         "capacity": 200,
-        "cost": {},
+        "cost": {
+          "iron": 20,
+          "parts": 5
+        },
         "sp_cost": 300
       }
     ],
@@ -104,20 +108,23 @@
     "levels": [
       {
         "level": 1,
-        "slots": 3,
-        "sp_cost": 0,
-        "cost": {}
+        "slots": 3
       },
       {
         "level": 2,
         "slots": 4,
-        "cost": {},
+        "cost": {
+          "iron": 10
+        },
         "sp_cost": 200
       },
       {
         "level": 3,
         "slots": 5,
-        "cost": {},
+        "cost": {
+          "iron": 20,
+          "parts": 10
+        },
         "sp_cost": 500
       }
     ],

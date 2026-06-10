@@ -1,0 +1,20 @@
+{
+  "well": {
+    "name": "🕳️ 水井",
+    "lvs": [],
+    "sp": [],
+    "cost": {}
+  },
+  "workbench": {
+    "name": "⚙️ 工作台",
+    "lvs": [],
+    "sp": [],
+    "cost": {}
+  },
+  "purifier": {
+    "name": "🚰 净水器",
+    "lvs": [],
+    "sp": [],
+    "cost": {}
+  }
+}

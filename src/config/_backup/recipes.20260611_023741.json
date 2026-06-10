@@ -1,0 +1,26 @@
+[
+  {
+    "id": "smelt_iron",
+    "name": "熔炼铁锭",
+    "station": "workbench",
+    "level": 1,
+    "output": {
+      "iron": 1
+    },
+    "inputs": {
+      "scrap_iron": 3
+    }
+  },
+  {
+    "id": "burn_charcoal",
+    "name": "烧制木炭",
+    "station": "workbench",
+    "level": 1,
+    "output": {
+      "charcoal": 1
+    },
+    "inputs": {
+      "wood": 2
+    }
+  }
+]

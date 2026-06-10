@@ -104,20 +104,23 @@
     "levels": [
       {
         "level": 1,
-        "slots": 3,
-        "sp_cost": 0,
-        "cost": {}
+        "slots": 3
       },
       {
         "level": 2,
         "slots": 4,
-        "cost": {},
+        "cost": {
+          "iron": 10
+        },
         "sp_cost": 200
       },
       {
         "level": 3,
         "slots": 5,
-        "cost": {},
+        "cost": {
+          "iron": 20,
+          "parts": 10
+        },
         "sp_cost": 500
       }
     ],

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "supermarket",
+    "name": "🏪 废弃超市",
+    "danger": 1,
+    "event_rate": 0.25,
+    "special": null,
+    "loot": [
+      {
+        "item": "plastic",
+        "min": 1,
+        "max": 2
+      },
+      {
+        "item": "cloth",
+        "min": 1,
+        "max": 2
+      }
+    ]
+  }
+]
