@@ -9,14 +9,29 @@ import json
 import os
 import sys
 from pathlib import Path
+from functools import partial
 
 PORT = 8765
 SRC_DIR = Path(__file__).parent / "src"
 CONFIG_DIR = SRC_DIR / "config"
+BACKUP_DIR = CONFIG_DIR / "_backup"
+
+def backup_file(filepath):
+    """保存前自动备份到 _backup/ 目录"""
+    if not filepath.exists():
+        return
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_name = f"{filepath.stem}.{timestamp}{filepath.suffix}"
+    backup_path = BACKUP_DIR / backup_name
+    backup_path.write_bytes(filepath.read_bytes())
+    # 只保留最近 20 个备份
+    backups = sorted(BACKUP_DIR.glob(f"{filepath.stem}.*{filepath.suffix}"))
+    for old in backups[:-20]:
+        old.unlink()
 
 class DeepHavenHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(SRC_DIR), **kwargs)
 
     def do_POST(self):
         if self.path == "/api/save":
@@ -27,12 +42,13 @@ class DeepHavenHandler(http.server.SimpleHTTPRequestHandler):
                 filename = data.get("file", "")
                 content = data.get("content", "")
 
-                # 安全检查：只允许写入 config/ 下的 .js 文件
-                if not filename.endswith(".js") or "/" in filename or "\\" in filename or ".." in filename:
+                # 安全检查：只允许写入 config/ 下的 .json 文件
+                if not (filename.endswith(".json") or filename.endswith(".js")) or "/" in filename or "\\" in filename or ".." in filename:
                     self.send_json(400, {"ok": False, "error": "非法文件名"})
                     return
 
                 filepath = CONFIG_DIR / filename
+                backup_file(filepath)
                 filepath.write_text(content, encoding="utf-8")
 
                 print(f"  ✅ 已保存: config/{filename}  ({len(content)} 字节)")
@@ -75,7 +91,7 @@ if __name__ == "__main__":
 ║  按 Ctrl+C 停止服务器                 ║
 ╚══════════════════════════════════════╝
 """)
-    server = http.server.HTTPServer(("0.0.0.0", PORT), DeepHavenHandler)
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), partial(DeepHavenHandler, directory=str(SRC_DIR)))
     try:
         server.serve_forever()
     except KeyboardInterrupt:

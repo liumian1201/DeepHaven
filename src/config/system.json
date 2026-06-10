@@ -1,0 +1,46 @@
+{
+  "gathering": {
+    "name": "⛏️ 采集",
+    "desc": "提升探索搜刮时的物资产出倍率",
+    "levels": [
+      { "level": 1, "multiplier": 1.0, "cost": { "sp": 0 } },
+      { "level": 2, "multiplier": 1.5, "cost": { "sp": 80, "iron": 5 } },
+      { "level": 3, "multiplier": 2.0, "cost": { "sp": 150, "iron": 10 } },
+      { "level": 4, "multiplier": 2.5, "cost": { "sp": 300, "iron": 20, "parts": 5 } },
+      { "level": 5, "multiplier": 3.0, "cost": { "sp": 500, "iron": 30, "parts": 10 } }
+    ],
+    "current": 1
+  },
+  "storage": {
+    "name": "📦 随身空间",
+    "desc": "外出探索时可携带物品的容量上限（单位：升，1000L=1m³）",
+    "levels": [
+      { "level": 1, "capacity": 1000, "cost": { "sp": 0 } },
+      { "level": 2, "capacity": 1500, "cost": { "sp": 100, "iron": 5 } },
+      { "level": 3, "capacity": 2000, "cost": { "sp": 200, "iron": 10, "plastic": 5 } },
+      { "level": 4, "capacity": 3000, "cost": { "sp": 400, "iron": 15, "plastic": 10 } },
+      { "level": 5, "capacity": 5000, "cost": { "sp": 800, "iron": 25, "parts": 10 } }
+    ],
+    "current": 1
+  },
+  "energy_capacity": {
+    "name": "⚡ 能量上限",
+    "desc": "提升系统能量最大储备量",
+    "levels": [
+      { "level": 1, "capacity": 100, "cost": { "sp": 0 } },
+      { "level": 2, "capacity": 150, "cost": { "sp": 150, "iron": 10, "plastic": 5 } },
+      { "level": 3, "capacity": 200, "cost": { "sp": 300, "iron": 20, "parts": 5 } }
+    ],
+    "current": 1
+  },
+  "action_slots": {
+    "name": "🕐 行动槽位",
+    "desc": "每日可执行的操作次数",
+    "levels": [
+      { "level": 1, "slots": 3, "cost": { "sp": 0 } },
+      { "level": 2, "slots": 4, "cost": { "sp": 200, "iron": 10 } },
+      { "level": 3, "slots": 5, "cost": { "sp": 500, "iron": 20, "parts": 10 } }
+    ],
+    "current": 1
+  }
+}

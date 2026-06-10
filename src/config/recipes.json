@@ -1,0 +1,5 @@
+[
+  { "id": "smelt_iron",       "name": "熔炼铁锭",    "inputs": { "scrap_iron": 3 },                    "output": "iron",       "station": "furnace" },
+  { "id": "burn_charcoal",    "name": "烧制木炭",    "inputs": { "wood": 2 },                          "output": "charcoal",   "station": "furnace" },
+  { "id": "craft_purifier_t1","name": "组装净水器",  "inputs": { "charcoal": 2, "cloth": 4 },           "output": "water_purifier_t1", "station": "workbench", "level": 1 }
+]

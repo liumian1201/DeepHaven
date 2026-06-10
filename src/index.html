@@ -264,17 +264,15 @@
     #actions button { font-size: 11px; padding: 8px 4px; }
   }
 </style>
-<!-- 配置文件（数据驱动，改数值只改这些文件） -->
-<script src="config/disasters.js"></script>
-<script src="config/effects.js"></script>
-<script src="config/facilities.js"></script>
-<script src="config/crafting.js"></script>
-<script src="config/locations.js"></script>
-<script src="config/events.js"></script>
+<!-- JSON 数据加载（从 config/*.json 获取） -->
 </head>
 <body>
 
-<div id="app">
+<div id="loading" style="position:fixed;inset:0;background:var(--bg);display:flex;justify-content:center;align-items:center;z-index:999;font-size:20px;color:var(--accent)">
+  <span id="loading-text">🌊 加载数据中...</span>
+</div>
+
+<div id="app" style="display:none">
   <!-- 标题 -->
   <div id="header">
     <h1>🌊 Deep Haven</h1>
@@ -342,18 +340,70 @@
 <div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
 
 <script>
-// ==================== 游戏数据 ====================
-// （DISASTERS、FACILITIES、LOCATIONS、POS/NEG/RARE_EVENTS、MAT_NAMES、MAT_KEYS
-//   已从 config/*.js 外部加载，直接使用全局变量即可）
+// ==================== 数据加载（从 JSON 配置文件） ====================
+let DATA = { items:{}, recipes:[], facilities:{}, locations:[], disasters:{}, events:{pos:[],neg:[],rare:[]}, effects:{}, system:{} };
+let MAT_NAMES = {}, MAT_KEYS = [], MAT_CATS = {};
+let FACILITIES = {}, DISASTERS = {}, LOCATIONS = [];
+let POS_EVENTS = [], NEG_EVENTS = [], RARE_EVENTS = [];
+let EFFECTS = [], RECIPES = [];
+let CATEGORIES = ['物资','加工品','武器','防具','设施','消耗品','食物','药品','书籍','工具'];
+
+function buildCompat() {
+  // 从 DATA 构建兼容层
+  MAT_NAMES = {}; MAT_KEYS = []; MAT_CATS = {};
+  Object.entries(DATA.items).forEach(function(e) {
+    MAT_NAMES[e[0]] = e[1].name;
+    MAT_KEYS.push(e[0]);
+    MAT_CATS[e[0]] = e[1].category || '物资';
+  });
+  FACILITIES = DATA.facilities;
+  DISASTERS = DATA.disasters;
+  LOCATIONS = DATA.locations;
+  POS_EVENTS = DATA.events.pos || [];
+  NEG_EVENTS = DATA.events.neg || [];
+  RARE_EVENTS = DATA.events.rare || [];
+  EFFECTS = DATA.effects;
+  RECIPES = DATA.recipes || [];
+  // 初始化 material 库存
+  MAT_KEYS.forEach(function(k) { if (!(k in G.materials)) G.materials[k] = 0; });
+}
+
+// 加载所有 JSON
+var FILES = ['items','recipes','facilities','locations','disasters','events','effects','system'];
+var loaded = 0;
+FILES.forEach(function(f) {
+  fetch('config/'+f+'.json')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      DATA[f] = d;
+      loaded++;
+      document.getElementById('loading-text').textContent = '🌊 加载中... (' + loaded + '/' + FILES.length + ')';
+      if (loaded === FILES.length) {
+        buildCompat();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('app').style.display = '';
+        initGame();
+      }
+    })
+    .catch(function(e) {
+      loaded++;
+      if (loaded === FILES.length) {
+        buildCompat();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('app').style.display = '';
+        initGame();
+      }
+    });
+});
 
 // ==================== 游戏状态 ====================
 let G = {
   day: 1,
   health: 100, stamina: 100, maxStamina: 100,
   food: 5, water: 7,
-  materials: { wood:0, scrap_iron:0, plastic:0, cloth:0, fuel:0 },
+  materials: {},
   sp: 0, energy: 100, maxEnergy: 100, energyRegen: 5,
-  facilities: {},  // {id: level}，未建的设施视为 0 级
+  facilities: {},  // {id: level}
   survivors: [],
   maxSurvivors: 3,
   actionSlots: 3, maxActionSlots: 3,
@@ -1002,8 +1052,21 @@ function skipDays(n) {
 }
 
 // ==================== 初始化 ====================
-// 自动从槽位1读取（如果有的话，作为自动存档提示）
-updateUI();
+function initGame() {
+  // 系统升级初始化
+  if (DATA.system) {
+    if (DATA.system.action_slots) {
+      G.maxActionSlots = DATA.system.action_slots.levels[DATA.system.action_slots.current-1]?.slots || 3;
+      G.actionSlots = G.maxActionSlots;
+    }
+    if (DATA.system.energy_capacity) {
+      G.maxEnergy = DATA.system.energy_capacity.levels[DATA.system.energy_capacity.current-1]?.capacity || 100;
+      G.energy = G.maxEnergy;
+    }
+  }
+  updateUI();
+  addLog('> 系统：避难所启动。活下去。');
+}
 </script>
 </body>
 </html>
