@@ -65,9 +65,12 @@
     "id": "school",
     "name": "🏫 废弃学校",
     "danger": 1,
-    "event_rate": 0.3,
-    "special": "书籍（解锁配方）",
     "loot": [
+      {
+        "item": "food",
+        "min": 1,
+        "max": 2
+      },
       {
         "item": "wood",
         "min": 2,
@@ -78,7 +81,9 @@
         "min": 1,
         "max": 2
       }
-    ]
+    ],
+    "special": "书籍（解锁配方）",
+    "event_rate": 0.3
   },
   {
     "id": "factory",
