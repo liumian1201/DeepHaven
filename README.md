@@ -27,7 +27,13 @@
 
 ## 🚀 快速开始
 
-浏览器直接打开 `src/index.html`，无需任何服务器或安装。
+### 玩游戏
+浏览器直接打开 `src/index.html`
+
+### 改数据
+双击 `start-editor.bat` → 自动启动本地服务器 → 浏览器编辑 → 💾 直接保存
+
+（需要 Python 3，也可直接打开 `src/editor.html` 用 📥 下载模式）
 
 ---
 
@@ -45,19 +51,24 @@
 
 ```
 src/
-├── index.html              ← 主页面（UI + 引擎逻辑）
+├── index.html              ← 游戏主页面（UI + 引擎逻辑）
+├── editor.html             ← 数据编辑器（可视化编辑所有配置）
 └── config/
-    ├── facilities.js       ← 设施数据（9线×多级）
+    ├── facilities.js       ← 设施 + 材料 + 分类
     ├── locations.js        ← 探索地点掉落表
     ├── disasters.js        ← 12个月天灾
-    └── events.js           ← 正/负/稀有事件池
+    ├── events.js           ← 正/负/稀有事件池
+    ├── effects.js          ← 7种效果定义
+    └── crafting.js         ← 合成配方
+server.py                   ← 本地数据服务器（编辑器直写文件）
+start-editor.bat            ← 一键启动编辑器
 ```
 
 ---
 
 ## 📋 项目状态
 
-🟢 **v0.0.1** — HTML 可玩原型，科技树 v2 废土写实风
+🟢 **v0.0.2** — 数据编辑器上线，可视化配置驱动
 
 ---
 

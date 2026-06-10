@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Haven — 数据编辑器</title>
+<script src="config/disasters.js"></script>
+<script src="config/effects.js"></script>
+<script src="config/facilities.js"></script>
+<script src="config/locations.js"></script>
+<script src="config/events.js"></script>
+<script src="config/crafting.js"></script>
+<style>
+:root{--bg:#0a0e14;--panel:#131820;--border:#1e2a3a;--text:#c8d6e5;--dim:#5c7a9a;--accent:#39c0d4;--warn:#e6a23c;--danger:#e0555a;--success:#4ecb71}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI','Microsoft YaHei',sans-serif;display:flex;height:100vh}
+#sidebar{width:170px;background:var(--panel);border-right:1px solid var(--border);padding:10px 0;overflow-y:auto}
+#sidebar h2{font-size:13px;color:var(--accent);padding:0 10px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.tab{padding:8px 10px;cursor:pointer;font-size:12px;border-left:3px solid transparent}
+.tab:hover{background:#1a2535}.tab.active{border-left-color:var(--accent);background:#162030;color:var(--accent)}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#toolbar{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#toolbar button{padding:5px 10px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:var(--text);cursor:pointer;font-size:11px;font-family:inherit}
+#toolbar button:hover{background:#1e2d40;border-color:var(--accent)}
+#toolbar button.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:bold}
+#toolbar button.save{background:var(--success);color:var(--bg);border-color:var(--success);font-weight:bold}
+#content{flex:1;display:flex;overflow:hidden}
+#list-panel{width:280px;border-right:1px solid var(--border);overflow-y:auto;padding:6px}
+.list-item{padding:8px 10px;border:1px solid var(--border);border-radius:5px;margin-bottom:4px;cursor:pointer;font-size:11px}
+.list-item:hover{border-color:var(--accent);background:#1a2535}
+.list-item.sel{border-color:var(--accent);background:#162030}
+.list-item .li-name{font-weight:bold;margin-bottom:1px}
+.list-item .li-meta{font-size:10px;color:var(--dim)}
+#edit-panel{flex:1;overflow-y:auto;padding:14px}
+#edit-panel h3{font-size:14px;color:var(--accent);margin-bottom:10px}
+.field{margin-bottom:8px}
+.field label{display:block;font-size:10px;color:var(--dim);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}
+.field input,.field textarea,.field select{width:100%;padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;font-family:inherit}
+.field textarea{min-height:50px;resize:vertical}
+.lv-card{border:1px solid var(--border);border-radius:7px;padding:10px;margin-bottom:8px;background:var(--bg)}
+.lv-card .lv-hd{font-weight:bold;color:var(--accent);margin-bottom:6px;display:flex;justify-content:space-between}
+.kv-row{display:flex;gap:4px;align-items:center;margin-bottom:3px;flex-wrap:wrap}
+.kv-row select,.kv-row input{padding:4px 6px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:10px;font-family:inherit}
+.kv-row select{min-width:90px}.kv-row input[type=number]{width:60px}
+.cat-sel{min-width:80px!important}.item-sel{min-width:100px!important}
+.btn-sm{padding:3px 7px;font-size:10px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--panel);color:var(--text);font-family:inherit}
+.btn-sm:hover{background:#1e2d40}.btn-sm.danger{color:var(--danger);border-color:var(--danger)}.btn-sm.danger:hover{background:var(--danger);color:var(--bg)}
+.btn-sm.green{color:var(--success);border-color:var(--success)}
+.section-label{font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;border-top:1px solid var(--border);padding-top:8px}
+#status-msg{font-size:10px;color:var(--success);margin-left:8px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1e2a3a;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h2>📝 编辑器</h2>
+  <div class="tab active" data-tab="materials">📦 物品</div>
+  <div class="tab" data-tab="effects">⚡ 效果</div>
+  <div class="tab" data-tab="facilities">🏗️ 设施</div>
+  <div class="tab" data-tab="recipes">🔨 配方</div>
+  <div class="tab" data-tab="locations">🗺️ 地点</div>
+  <div class="tab" data-tab="disasters">🌪️ 天灾</div>
+  <div class="tab" data-tab="events">📜 事件</div>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <button class="save" onclick="saveToServer()">💾 直接保存</button>
+    <button onclick="downloadAll()">📥 下载全部</button>
+    <button onclick="exportAll()">📋 导出合并</button>
+    <span id="status-msg"></span>
+    <span style="flex:1"></span>
+    <span style="font-size:10px;color:var(--dim)">需通过 python server.py 启动</span>
+  </div>
+  <div id="content">
+    <div id="list-panel"></div>
+    <div id="edit-panel"><div style="color:var(--dim);text-align:center;padding:60px">← 选择条目编辑</div></div>
+  </div>
+</div>
+
+<div id="modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;justify-content:center;align-items:center;z-index:200"></div>
+
+<script>
+// ==================== 数据初始化 ====================
+if(typeof MAT_NAMES==='undefined')var MAT_NAMES={};
+if(typeof MAT_KEYS==='undefined')var MAT_KEYS=[];
+if(Object.keys(MAT_NAMES).length===0){MAT_NAMES={wood:'🪵 木材',scrap_iron:'🔩 废铁',plastic:'🧴 塑料',cloth:'🧵 布料',fuel:'⛽ 燃料'};MAT_KEYS=['wood','scrap_iron','plastic','cloth','fuel'];}
+
+// 分类（从文件加载或使用默认）
+var CATEGORIES = (typeof CATEGORIES!=='undefined'&&Array.isArray(CATEGORIES))?CATEGORIES:['原材料','加工品','武器','防具','工具','建筑','食物','药品','消耗品','书籍'];
+if(CATEGORIES.indexOf('原材料')<0)CATEGORIES.unshift('原材料');
+// 材料分类（从文件加载或初始化）
+if(typeof MAT_CATS==='undefined')var MAT_CATS={};
+// 确保 MAT_KEYS 中每个 key 都有分类（默认'原材料'）
+MAT_KEYS.forEach(function(k){if(!MAT_CATS[k])MAT_CATS[k]='原材料';});
+
+// 效果
+var EFFECTS = [
+  {id:'comfort',name:'舒适度',desc:'影响每日SP产出'},{id:'defense',name:'防御力',desc:'尸潮检定'},{id:'attack',name:'攻击力',desc:'战斗检定'},
+  {id:'heal',name:'自动回血',desc:'每日恢复生命'},{id:'food_save',name:'食物节省',desc:'减少食物消耗%'},{id:'water_out',name:'日产水',desc:'每日产出水'},
+  {id:'stamina_save',name:'体力节省',desc:'减少体力消耗%'}
+];
+var RECIPES = [];
+
+// ==================== 状态 ====================
+var currentTab='materials',selectedIdx=-1;
+
+// ==================== Tab ====================
+document.querySelectorAll('.tab').forEach(function(t){t.onclick=function(){
+  document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active')});
+  this.classList.add('active');currentTab=this.dataset.tab;selectedIdx=-1;
+  renderList();document.getElementById('edit-panel').innerHTML='<div style="color:var(--dim);text-align:center;padding:60px">← 选择条目编辑</div>';
+}});
+
+// ==================== 数据源 ====================
+function ds(){
+  if(currentTab==='materials')return{type:'materials',keys:MAT_KEYS,len:MAT_KEYS.length};
+  if(currentTab==='effects')return{type:'effects',arr:EFFECTS,len:EFFECTS.length};
+  if(currentTab==='facilities')return{type:'facilities',arr:Object.entries(FACILITIES).map(function(e){return{id:e[0],name:e[1].name,lvs:e[1].lvs||[]}}),len:Object.keys(FACILITIES).length};
+  if(currentTab==='recipes')return{type:'recipes',arr:RECIPES,len:RECIPES.length};
+  if(currentTab==='locations')return{type:'locations',arr:LOCATIONS,len:LOCATIONS.length};
+  if(currentTab==='disasters')return{type:'disasters',arr:Object.entries(DISASTERS).map(function(e){var o=e[1];o.month=parseInt(e[0]);return o}),len:Object.keys(DISASTERS).length};
+  if(currentTab==='events')return{type:'events',pos:POS_EVENTS,neg:NEG_EVENTS,rare:RARE_EVENTS};
+}
+
+// ==================== 列表 ====================
+function renderList(){
+  var d=ds(),h='';
+  if(d.type==='materials'){
+    // 构建分类树（支持 / 嵌套）
+    var root={}; // {cat: {_items:[], subcats:{}}}
+    function ensure(catPath,itemKey){
+      if(!catPath)catPath='原材料';
+      catPath=catPath.replace(/\/+$/g,''); // 去掉末尾/
+      var parts=catPath.split('/'),node=root;
+      for(var p=0;p<parts.length;p++){
+        var part=parts[p].trim();if(!part)continue;
+        if(!node[part])node[part]={_items:[],_sub:{}};
+        if(p===parts.length-1&&itemKey)node[part]._items.push(itemKey);
+        node=node[part]._sub;
+      }
+    }
+    MAT_KEYS.forEach(function(k){ensure(MAT_CATS[k]||'原材料',k);});
+    // 空分类也加入树
+    CATEGORIES.forEach(function(c){ensure(c,null);});
+    // 同步缺失分类到 CATEGORIES（含嵌套路径）
+    function syncCat(node,prefix){
+      Object.keys(node).forEach(function(k){
+        var full=prefix?prefix+'/'+k:k;
+        if(CATEGORIES.indexOf(full)<0&&CATEGORIES.indexOf(k)<0)CATEGORIES.push(full);
+        if(node[k]._sub)syncCat(node[k]._sub,full);
+      });
+    }
+    syncCat(root,'');
+
+    function renderTree(node,depth,parentPath){
+      var h2='';parentPath=parentPath||'';
+      Object.keys(node).sort().forEach(function(k){
+        var n=node[k],cnt=n._items.length,hasKids=Object.keys(n._sub).length>0;
+        var pad='padding-left:'+(depth*16+8)+'px';
+        var fullPath=(depth?parentPath+'/'+k:k);
+        h2+='<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--accent);padding:4px 2px;font-weight:bold;cursor:pointer;'+pad+'" onclick="toggleCat(this)">';
+        h2+='<span>▼ 📁 '+k+(cnt||hasKids?' ('+cnt+')':'')+'</span>';
+        h2+='<span><button class="btn-sm" data-path="'+fullPath+'" onclick="event.stopPropagation();renameCat(getFullPath(this))" title="重命名">✏️</button> <button class="btn-sm danger" data-path="'+fullPath+'" onclick="event.stopPropagation();delCat(getFullPath(this))" title="删除">🗑</button></span></div>';
+        h2+='<div class="cat-group" style="'+pad+'">';
+        n._items.forEach(function(ik){var idx=MAT_KEYS.indexOf(ik);h2+=li(idx,MAT_NAMES[ik],ik);});
+        if(hasKids)h2+=renderTree(n._sub,depth+1,fullPath);
+        // 每层底部：添加快捷按钮
+        var addPath=fullPath||'';
+        h2+='<div style="padding:4px 0;font-size:10px">';
+        h2+='<button class="btn-sm" onclick="event.stopPropagation();addCatHere(\''+addPath.replace(/'/g,"\\'")+'\')">＋ 子分类</button> ';
+        h2+='<button class="btn-sm" onclick="event.stopPropagation();addItemHere(\''+addPath.replace(/'/g,"\\'")+'\')">＋ 物品</button>';
+        h2+='</div>';
+        h2+='</div>';
+      });
+      return h2;
+    }
+    h+='<div style="padding:4px 0;font-size:10px;margin-bottom:6px"><button class="btn-sm" onclick="addCatHere(\'\')">＋ 新建分类</button> <button class="btn-sm" onclick="addItemHere(\'\')">＋ 新建物品</button></div>';
+    h+=renderTree(root,0,'');
+    document.getElementById('list-panel').innerHTML=h;
+    return;
+  }
+  else if(d.type==='effects')d.arr.forEach(function(e,i){h+=li(i,e.name,'ID:'+e.id);});
+  else if(d.type==='facilities')d.arr.forEach(function(f,i){h+=li(i,f.name,f.lvs.length+'级');});
+  else if(d.type==='recipes')d.arr.forEach(function(r,i){h+=li(i,r.name,(r.type||'材料')+' | 台Lv.'+(r.workbench||0));});
+  else if(d.type==='locations')d.arr.forEach(function(l,i){h+=li(i,l.name,'★'.repeat(l.danger));});
+  else if(d.type==='disasters')d.arr.forEach(function(x,i){h+=li(i,x.name,'第'+x.month+'月');});
+  else if(d.type==='events'){['pos','neg','rare'].forEach(function(t){var L=t==='pos'?'✅':t==='neg'?'⚠️':'💎',arr=t==='pos'?d.pos:t==='neg'?d.neg:d.rare;h+='<div style="font-size:10px;color:var(--accent);padding:4px">'+L+' ('+arr.length+')</div>';arr.forEach(function(ev,i){h+='<div class="list-item'+(selectedIdx===t+':'+i?' sel':'')+'" onclick="sel(\''+t+':'+i+'\')"><div class="li-name" style="font-size:10px">'+ev.text.substring(0,25)+'...</div></div>';});});}
+  document.getElementById('list-panel').innerHTML=h||'<div style="color:var(--dim);padding:20px;text-align:center">无</div>';
+}
+function li(i,n,m){return'<div class="list-item'+(i===selectedIdx?' sel':'')+'" onclick="sel('+i+')"><div class="li-name">'+n+'</div>'+(m?'<div class="li-meta">'+m+'</div>':'')+'</div>';}
+function sel(i){selectedIdx=i;renderList();renderEdit(i);}
+
+// ==================== 辅助 ====================
+function F(lb,id,v,dis,ty){var t=ty||'text',d=dis?' disabled':'';if(t==='textarea')return'<div class="field"><label>'+lb+'</label><textarea id="'+id+'">'+S(v)+'</textarea></div>';return'<div class="field"><label>'+lb+'</label><input id="'+id+'" type="'+t+'" value="'+S(v)+'"'+d+'></div>';}
+function catOpts(sel){return CATEGORIES.map(function(c){return'<option value="'+c+'"'+(c===sel?' selected':'')+'>'+c+'</option>';}).join('');}
+function flatCatOpts(sel){
+  var root={},opts='';
+  MAT_KEYS.forEach(function(k){var p=MAT_CATS[k]||'原材料';var parts=p.split('/'),n=root;parts.forEach(function(part,i){if(!n[part])n[part]={_sub:{}};if(i===parts.length-1)n[part]._has=1;n=n[part]._sub;});});
+  function walk(node,prefix,depth){
+    Object.keys(node).sort().forEach(function(k){
+      var full=prefix?prefix+'/'+k:k,indent='　'.repeat(depth);
+      opts+='<option value="'+full+'"'+(full===sel?' selected':'')+'>'+indent+'📁 '+k+'</option>';
+      if(node[k]._sub)walk(node[k]._sub,full,depth+1);
+    });
+  }
+  walk(root,'',0);
+  return opts;
+}
+// 二级下拉：分类→物品
+function cat2Sel(catClass,itemClass,selKey){
+  return'<select class="cat-sel '+catClass+'" onchange="update2nd(this,\''+itemClass+'\')">'+catOpts(MAT_CATS[selKey]||'原材料')+'</select>'+
+    '<select class="item-sel '+itemClass+'">'+matOptsByCat(MAT_CATS[selKey]||'原材料',selKey)+'</select>';
+}
+function matOptsByCat(cat,selKey){
+  return MAT_KEYS.filter(function(k){return (MAT_CATS[k]||'原材料')===cat;}).map(function(k){return'<option value="'+k+'"'+(k===selKey?' selected':'')+'>'+MAT_NAMES[k]+'</option>';}).join('');
+}
+function update2nd(catSel,itemClass){
+  var cat=catSel.value;
+  var itemSels=document.getElementsByClassName(itemClass);
+  for(var i=0;i<itemSels.length;i++){
+    var sel=itemSels[i],oldVal=sel.value;
+    sel.innerHTML=matOptsByCat(cat,oldVal);
+    // 如果旧值不在新分类中，选第一个
+    if(sel.selectedIndex<0)sel.selectedIndex=0;
+  }
+}
+function effOpts(selKey){return EFFECTS.map(function(e){return'<option value="'+e.id+'"'+(e.id===selKey?' selected':'')+'>'+e.name+'</option>';}).join('');}
+function resOpts2(selCat,selKey){
+  return'<select class="cat-sel" onchange="update2nd(this,\'res-item\')">'+catOpts(selCat||'原材料')+'</select>'+
+    '<select class="item-sel res-item">'+matOptsByCat(selCat||'原材料',selKey)
+    +'<option value="food"'+(selKey==='food'?' selected':'')+'>🍞 食物</option><option value="water"'+(selKey==='water'?' selected':'')+'>💧 水</option></select>';
+}
+
+// ==================== 通用弹窗 ====================
+function showModal(h){document.getElementById('modal').innerHTML='<div style="max-width:420px;margin:0 auto;padding:20px">'+h+'</div>';document.getElementById('modal').style.display='flex';}
+function closeModal(){document.getElementById('modal').style.display='none';}
+function S(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function msg(m){document.getElementById('status-msg').textContent=m;setTimeout(function(){document.getElementById('status-msg').textContent='';},3000);}
+
+// ==================== 自定义弹窗（替代 prompt/confirm） ====================
+var _askCb=null,_askConfirmCb=null;
+function ask(q,def,cb){
+  var h='<h3>'+S(q)+'</h3>';
+  h+='<input id="ask-input" value="'+S(def||'')+'" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">';
+  h+='<button class="btn-sm green" onclick="closeAsk(true)" style="padding:6px 20px;font-size:12px;margin-right:6px">确认</button>';
+  h+='<button class="btn-sm" onclick="closeAsk(false)" style="padding:6px 20px;font-size:12px">取消</button>';
+  _askCb=cb;showModal(h);
+}
+function closeAsk(ok){var v=ok?document.getElementById('ask-input').value:null;closeModal();if(_askCb)_askCb(v);}
+function askConfirm(q,cb){
+  var h='<h3>'+S(q)+'</h3>';
+  h+='<button class="btn-sm green" onclick="closeAsk2(true)" style="padding:6px 20px;font-size:12px;margin-right:6px">确认</button>';
+  h+='<button class="btn-sm danger" onclick="closeAsk2(false)" style="padding:6px 20px;font-size:12px">取消</button>';
+  _askConfirmCb=cb;showModal(h);
+}
+function closeAsk2(ok){closeModal();if(_askConfirmCb)_askConfirmCb(ok);}
+
+function getFullPath(el){
+  // 直接从 data-path 属性获取完整路径
+  return el.getAttribute('data-path')||'';
+}
+
+// ==================== 分类操作 ====================
+function addCat(){addCatHere('');}
+function addCatHere(parentPath){
+  ask('新子分类名(可继续/嵌套):','',function(v){
+    if(!v)return;
+    var full=parentPath?parentPath+'/'+v:v;
+    if(CATEGORIES.indexOf(full)>=0){alert('分类已存在');return;}
+    CATEGORIES.push(full);renderList();
+  });
+}
+function addItemHere(parentPath){
+  var h='<h3>新增物品'+(parentPath?' @ '+parentPath:'')+'</h3>';
+  h+='<input id="ask-id" placeholder="英文ID" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">';
+  h+='<input id="ask-name" placeholder="中文名称" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">';
+  h+='<button class="btn-sm green" onclick="closeAskMatHere(\''+parentPath.replace(/'/g,"\\'")+'\')" style="padding:6px 20px;font-size:12px;margin-right:6px">确认</button>';
+  h+='<button class="btn-sm" onclick="closeModal()" style="padding:6px 20px;font-size:12px">取消</button>';
+  showModal(h);
+}
+function closeAskMatHere(parentPath){
+  var id=document.getElementById('ask-id').value.trim();
+  var nm=document.getElementById('ask-name').value.trim();
+  closeModal();
+  if(!id||!nm)return;
+  var cat=parentPath||CATEGORIES[0]||'原材料';
+  if(MAT_KEYS.indexOf(id)>=0){MAT_NAMES[id]=nm;MAT_CATS[id]=cat;msg('⚠️ ID已存在，已更新名称和分类');selectedIdx=MAT_KEYS.indexOf(id);renderList();renderEdit(selectedIdx);return;}
+  MAT_KEYS.push(id);MAT_NAMES[id]=nm;MAT_CATS[id]=cat;
+  selectedIdx=MAT_KEYS.length-1;renderList();renderEdit(selectedIdx);
+}
+function renameCat(old){ask('重命名分类:',old,function(v){if(!v||v===old)return;if(CATEGORIES.indexOf(v)>=0&&v!==old){alert('分类已存在');return;}var idx=CATEGORIES.indexOf(old);if(idx>=0)CATEGORIES[idx]=v;MAT_KEYS.forEach(function(k){if(MAT_CATS[k]===old)MAT_CATS[k]=v;});renderList();});}
+function delCat(cat){
+  if(MAT_KEYS.some(function(k){return MAT_CATS[k]===cat;})){
+    askConfirm('分类"'+cat+'"下有物品，删除后归入"原材料"。确认？',function(ok){if(!ok)return;MAT_KEYS.forEach(function(k){if(MAT_CATS[k]===cat)MAT_CATS[k]='原材料';});CATEGORIES.splice(CATEGORIES.indexOf(cat),1);selectedIdx=-1;renderList();document.getElementById('edit-panel').innerHTML='<div style="color:var(--dim);text-align:center;padding:60px">← 选择条目编辑</div>';});
+  }else{
+    askConfirm('确认删除空分类"'+cat+'"？',function(ok){if(!ok)return;CATEGORIES.splice(CATEGORIES.indexOf(cat),1);selectedIdx=-1;renderList();document.getElementById('edit-panel').innerHTML='<div style="color:var(--dim);text-align:center;padding:60px">← 选择条目编辑</div>';});
+  }
+}
+function toggleCat(el){var g=el.nextElementSibling;if(g){var arrow=el.querySelector('span');if(g.style.display==='none'){g.style.display='';arrow.textContent=arrow.textContent.replace('▶','▼');}else{g.style.display='none';arrow.textContent=arrow.textContent.replace('▼','▶');}}}
+
+// ==================== 新增 ====================
+function addItem(){
+  var d=ds();
+  if(d.type==='materials'){addItemMat();}
+  else if(d.type==='effects'){addItemEff();}
+  else if(d.type==='facilities'){ask('设施ID(英文):','',function(id){if(!id)return;FACILITIES[id]={name:'新设施',lvs:['Lv.1'],cost:{},sp:[0],daily_output:{},daily_input:{},effects:{}};selectedIdx=Object.keys(FACILITIES).length-1;renderList();renderEdit(selectedIdx);});}
+  else if(d.type==='recipes'){RECIPES.push({id:'r_'+Date.now(),name:'新配方',type:'材料',workbench:0,cost_materials:{},cost_sp:0,cost_stamina:0,output:{}});selectedIdx=RECIPES.length-1;renderList();renderEdit(selectedIdx);}
+  else if(d.type==='locations'){LOCATIONS.push({id:'loc_'+Date.now(),name:'新地点',danger:1,rewards:{},eventRate:0.3});selectedIdx=LOCATIONS.length-1;renderList();renderEdit(selectedIdx);}
+  else if(d.type==='events'){ask('类型(pos/neg/rare):','',function(t){if(!t||['pos','neg','rare'].indexOf(t)<0)return;var arr=t==='pos'?POS_EVENTS:t==='neg'?NEG_EVENTS:RARE_EVENTS;arr.push({text:'新事件',r:{}});selectedIdx=t+':'+(arr.length-1);renderList();renderEdit(selectedIdx);});}
+}
+function addItemMat(){
+  var catsel='<select id="ask-cat" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">'+flatCatOpts(CATEGORIES[0])+'</select>';
+  var h='<h3>新增物品</h3>';
+  h+='<input id="ask-id" placeholder="英文ID" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">';
+  h+='<input id="ask-name" placeholder="中文名称" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;border-radius:5px;margin-bottom:10px">';
+  h+='<div style="font-size:11px;color:var(--dim);margin-bottom:4px">分类</div>'+catsel;
+  h+='<button class="btn-sm green" onclick="closeAskMat()" style="padding:6px 20px;font-size:12px;margin-right:6px">确认</button>';
+  h+='<button class="btn-sm" onclick="closeModal()" style="padding:6px 20px;font-size:12px">取消</button>';
+  showModal(h);
+}
+function closeAskMat(){
+  var id=document.getElementById('ask-id').value.trim();
+  var nm=document.getElementById('ask-name').value.trim();
+  var cat=document.getElementById('ask-cat').value;
+  closeModal();
+  if(!id||!nm)return;
+  if(MAT_KEYS.indexOf(id)>=0){MAT_NAMES[id]=nm;MAT_CATS[id]=cat;msg('⚠️ ID已存在，已更新名称和分类');selectedIdx=MAT_KEYS.indexOf(id);renderList();renderEdit(selectedIdx);return;}
+  MAT_KEYS.push(id);MAT_NAMES[id]=nm;MAT_CATS[id]=cat;
+  selectedIdx=MAT_KEYS.length-1;renderList();renderEdit(selectedIdx);
+}
+function addItemEff(){
+  ask('效果ID(英文):','',function(id){if(!id)return;ask('名称:','',function(nm){ask('描述:','',function(desc){EFFECTS.push({id:id,name:nm,desc:desc||''});selectedIdx=EFFECTS.length-1;renderList();renderEdit(selectedIdx);});});});
+}
+
+// ==================== 编辑表单 ====================
+function renderEdit(idx){
+  var h='';
+  if(currentTab==='categories')h=edCat(idx);
+  else if(currentTab==='materials')h=edMat(idx);
+  else if(currentTab==='effects')h=edEff(idx);
+  else if(currentTab==='facilities')h=edFac(idx);
+  else if(currentTab==='recipes')h=edRec(idx);
+  else if(currentTab==='locations')h=edLoc(idx);
+  else if(currentTab==='disasters')h=edDis(idx);
+  else if(currentTab==='events')h=edEvt(idx);
+  document.getElementById('edit-panel').innerHTML=h;
+}
+function delBtn(){return'<div style="margin-top:12px"><button class="btn-sm danger" onclick="doDel()">🗑 删除</button></div>';}
+
+// ── 物品 ──
+function edMat(i){var k=MAT_KEYS[i];return'<h3>📦 编辑物品</h3>'+F('ID','m_id',k,true)+F('名称','m_name',MAT_NAMES[k])+'<div style="font-size:10px;color:var(--dim);margin:4px 0">分类: '+(MAT_CATS[k]||'原材料')+'</div>'+delBtn();}
+
+// ── 效果 ──
+function edEff(i){var e=EFFECTS[i];return'<h3>⚡ 编辑效果</h3>'+F('ID','e_id',e.id,true)+F('名称','e_name',e.name)+F('描述','e_desc',e.desc)+delBtn();}
+
+// ── 设施 ──
+function edFac(i){
+  var fac=ds().arr[i];
+  var h='<h3>🏗️ 编辑设施</h3>'+F('ID','f_id',fac.id,true)+F('名称','f_name',fac.name);
+  h+='<div class="field"><label>等级列表</label><div id="fac-lvs"></div></div>';
+  h+='<button class="btn-sm" onclick="addFacLv()">＋ 添加等级</button>';
+  h+='<div style="margin-top:10px"><button class="btn-sm green" onclick="saveFacility()">💾 保存设施</button></div>'+delBtn();
+  setTimeout(function(){renderFacLvs(fac);},30);return h;
+}
+function renderFacLvs(fac){
+  var h='';
+  (fac.lvs||[]).forEach(function(nm,i){
+    h+='<div class="lv-card"><div class="lv-hd"><span>Lv.'+(i+1)+': '+nm+'</span><button class="btn-sm danger" onclick="this.closest(\'.lv-card\').remove()">✕</button></div>';
+    h+=F('等级名称','',nm).replace(/<label>.*<\/label>/,'').replace('id=""','class="fac-lv-name"');
+    h+=F('💰 SP替代成本','',(fac.sp||[])[i]||0,'','number').replace(/<label>.*<\/label>/,'').replace('id=""','class="fac-lv-sp"');
+    h+='<div class="section-label">🔧 材料成本</div><div class="fac-cost-'+i+'">';
+    var cost=fac.cost||{};
+    Object.keys(cost).forEach(function(k){var v=cost[k][i]||0;if(v>0)h+=kvCost(i,k,v);});
+    h+='</div><button class="btn-sm" onclick="addKvCost('+i+')">＋材料</button>';
+    h+='<div class="section-label">📤 每日产出</div><div class="fac-out-'+i+'">';
+    var out=fac.daily_output||{};Object.keys(out).forEach(function(k){var v=out[k][i]||0;if(v>0)h+=kvFacRes('out',i,k,v);});
+    h+='</div><button class="btn-sm" onclick="addKvFacRes(\'out\','+i+')">＋产出</button>';
+    h+='<div class="section-label">📥 每日消耗</div><div class="fac-in-'+i+'">';
+    var inp=fac.daily_input||{};Object.keys(inp).forEach(function(k){var v=inp[k][i]||0;if(v>0)h+=kvFacRes('in',i,k,v);});
+    h+='</div><button class="btn-sm" onclick="addKvFacRes(\'in\','+i+')">＋消耗</button>';
+    h+='<div class="section-label">⚡ 被动效果</div><div class="fac-eff-'+i+'">';
+    var ef=fac.effects||{};Object.keys(ef).forEach(function(k){var v=ef[k][i]||0;if(v!==0)h+=kvEff(i,k,v);});
+    h+='</div><button class="btn-sm" onclick="addKvEff('+i+')">＋效果</button>';
+    h+='</div>';
+  });
+  document.getElementById('fac-lvs').innerHTML=h||'<div style="color:var(--dim);padding:10px">暂无等级</div>';
+}
+function kvCost(i,k,v){return'<div class="kv-row">'+cat2Sel('','',k)+'<input type="number" value="'+v+'" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function kvFacRes(dir,i,k,v){return'<div class="kv-row">'+resOpts2(MAT_CATS[k]||'原材料',k)+'<input type="number" value="'+v+'" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function kvEff(i,k,v){return'<div class="kv-row"><select>'+effOpts(k)+'</select><input type="number" value="'+v+'" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function addKvCost(i){var d=document.createElement('div');d.className='kv-row';d.innerHTML=cat2Sel('','','')+'<input type="number" value="0" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.querySelector('.fac-cost-'+i).appendChild(d);}
+function addKvFacRes(dir,i){var d=document.createElement('div');d.className='kv-row';d.innerHTML=resOpts2('原材料','')+'<input type="number" value="0" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.querySelector('.fac-'+dir+'-'+i).appendChild(d);}
+function addKvEff(i){var d=document.createElement('div');d.className='kv-row';d.innerHTML='<select>'+effOpts()+ '</select><input type="number" value="0" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.querySelector('.fac-eff-'+i).appendChild(d);}
+function addFacLv(){
+  var div=document.createElement('div');div.className='lv-card';var i=document.querySelectorAll('#fac-lvs .lv-card').length;
+  div.innerHTML='<div class="lv-hd"><span>Lv.'+(i+1)+'</span><button class="btn-sm danger" onclick="this.closest(\'.lv-card\').remove()">✕</button></div>'+
+    '<input class="fac-lv-name" value="Lv.'+(i+1)+'" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:11px;border-radius:4px;margin-bottom:4px">'+
+    '<input class="fac-lv-sp" type="number" value="0" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:11px;border-radius:4px;margin-bottom:4px">'+
+    '<div class="section-label">🔧 材料成本</div><div class="fac-cost-'+i+'"></div><button class="btn-sm" onclick="addKvCost('+i+')">＋材料</button>'+
+    '<div class="section-label">📤 每日产出</div><div class="fac-out-'+i+'"></div><button class="btn-sm" onclick="addKvFacRes(\'out\','+i+')">＋产出</button>'+
+    '<div class="section-label">📥 每日消耗</div><div class="fac-in-'+i+'"></div><button class="btn-sm" onclick="addKvFacRes(\'in\','+i+')">＋消耗</button>'+
+    '<div class="section-label">⚡ 被动效果</div><div class="fac-eff-'+i+'"></div><button class="btn-sm" onclick="addKvEff('+i+')">＋效果</button>';
+  document.getElementById('fac-lvs').appendChild(div);
+}
+function saveFacility(){
+  var fObj=FACILITIES[ds().arr[selectedIdx].id],cards=document.querySelectorAll('#fac-lvs .lv-card');
+  fObj.lvs=[];fObj.sp=[];fObj.cost={};fObj.daily_output={};fObj.daily_input={};fObj.effects={};
+  cards.forEach(function(card,i){
+    var nm=card.querySelector('.fac-lv-name');fObj.lvs.push(nm?nm.value:'Lv.'+(i+1));
+    fObj.sp.push(parseInt((card.querySelector('.fac-lv-sp')||{}).value)||0);
+    card.querySelectorAll('[class*="fac-cost-"] .kv-row').forEach(function(row){
+      var sels=row.querySelectorAll('select'),inp=row.querySelector('input[type=number]');
+      if(sels.length<2||!inp)return;var k=sels[1].value,v=parseInt(inp.value)||0;
+      if(!fObj.cost[k])fObj.cost[k]=[];while(fObj.cost[k].length<i)fObj.cost[k].push(0);fObj.cost[k][i]=v;
+    });
+    card.querySelectorAll('[class*="fac-out-"] .kv-row').forEach(function(row){saveKvFacRes(row,fObj.daily_output,i);});
+    card.querySelectorAll('[class*="fac-in-"] .kv-row').forEach(function(row){saveKvFacRes(row,fObj.daily_input,i);});
+    card.querySelectorAll('[class*="fac-eff-"] .kv-row').forEach(function(row){
+      var sels=row.querySelectorAll('select'),inp=row.querySelector('input[type=number]');
+      if(sels.length<1||!inp)return;var k=sels[0].value,v=parseInt(inp.value)||0;
+      if(!fObj.effects[k])fObj.effects[k]=[];while(fObj.effects[k].length<i)fObj.effects[k].push(0);fObj.effects[k][i]=v;
+    });
+  });
+  var n=fObj.lvs.length;padArr(fObj.cost,n);padArr(fObj.daily_output,n);padArr(fObj.daily_input,n);padArr(fObj.effects,n);while(fObj.sp.length<n)fObj.sp.push(0);
+  alert('✅ 设施已保存！');renderList();
+}
+function saveKvFacRes(row,obj,i){
+  var sels=row.querySelectorAll('select'),inp=row.querySelector('input[type=number]');
+  if(sels.length<2||!inp)return;var k=sels[1].value,v=parseInt(inp.value)||0;
+  if(!obj[k])obj[k]=[];while(obj[k].length<i)obj[k].push(0);obj[k][i]=v;
+}
+function padArr(obj,n){Object.keys(obj).forEach(function(k){while(obj[k].length<n)obj[k].push(0);});}
+
+// ── 配方 ──
+var RECIPE_TYPES = ['材料','武器','防具','工具'];
+function edRec(i){
+  var r=RECIPES[i];
+  var h='<h3>🔨 编辑配方</h3>'+F('ID','r_id',r.id,true)+F('名称','r_name',r.name);
+  h+='<div class="field"><label>类型</label><select id="r_type">'+RECIPE_TYPES.map(function(t){return'<option'+(r.type===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>';
+  h+=F('需求工作台等级','r_wb',r.workbench||0,'','number');
+  h+='<div class="section-label">📥 消耗材料</div><div id="r-cost"></div><button class="btn-sm" onclick="addKvR(\'r-cost\')">＋材料</button>';
+  h+=F('消耗 SP','r_sp',r.cost_sp||0,'','number')+F('消耗体力','r_stamina',r.cost_stamina||0,'','number')+F('消耗能量','r_energy',r.cost_energy||0,'','number');
+  h+='<div class="section-label">📤 产出</div><div id="r-output"></div><button class="btn-sm" onclick="addKvR(\'r-output\')">＋产出</button>';
+  h+=delBtn();
+  setTimeout(function(){
+    var ch='';Object.entries(r.cost_materials||{}).forEach(function(e){ch+=kvR(e[0],e[1]);});document.getElementById('r-cost').innerHTML=ch;
+    var oh='';Object.entries(r.output||{}).forEach(function(e){oh+=kvR(e[0],e[1]);});document.getElementById('r-output').innerHTML=oh;
+  },30);return h;
+}
+function kvR(k,v){return'<div class="kv-row">'+cat2Sel('','',k)+'<input type="number" value="'+v+'" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function addKvR(id){var d=document.createElement('div');d.className='kv-row';d.innerHTML=cat2Sel('','','')+'<input type="number" value="0" style="width:60px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.getElementById(id).appendChild(d);}
+
+// ── 地点 ──
+function edLoc(i){
+  var l=LOCATIONS[i];
+  var h='<h3>🗺️ 编辑地点</h3>'+F('ID','l_id',l.id,true)+F('名称','l_name',l.name)+F('危险度(1~5)','l_danger',l.danger,'','number')+F('事件率(0~1)','l_er',l.eventRate,'','number')+F('特产描述','l_sp',l.special||'');
+  h+='<div class="section-label">📦 掉落表</div><div id="l-rw"></div><button class="btn-sm" onclick="addLocRw()">＋掉落</button>'+delBtn();
+  setTimeout(function(){
+    var rh='';Object.entries(l.rewards||{}).forEach(function(e){rh+=kvLoc(e[0],e[1]);});document.getElementById('l-rw').innerHTML=rh;
+  },30);return h;
+}
+function kvLoc(k,v){var mn=Array.isArray(v)?v[0]:v,mx=Array.isArray(v)?v[1]:v;return'<div class="kv-row">'+cat2Sel('','',k)+'<input type="number" value="'+mn+'" style="width:50px" placeholder="最小"><span style="font-size:10px;color:var(--dim)">~</span><input type="number" value="'+mx+'" style="width:50px" placeholder="最大"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function addLocRw(){var d=document.createElement('div');d.className='kv-row';d.innerHTML=cat2Sel('','','')+'<input type="number" value="0" style="width:50px"><span style="font-size:10px;color:var(--dim)">~</span><input type="number" value="1" style="width:50px"><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.getElementById('l-rw').appendChild(d);}
+
+// ── 天灾 ──
+function edDis(i){var d=ds().arr[i];return'<h3>🌪️ 编辑天灾</h3>'+F('月份','d_month',d.month,true)+F('名称','d_name',d.name)+F('惩罚','d_penalty',d.penalty)+F('机遇','d_bonus',d.bonus)+delBtn();}
+
+// ── 事件 ──
+function edEvt(idx){
+  var p=idx.split(':'),t=p[0],ei=parseInt(p[1]),arr=t==='pos'?POS_EVENTS:t==='neg'?NEG_EVENTS:RARE_EVENTS,ev=arr[ei];
+  var h='<h3>📜 编辑事件</h3>'+F('类型','ev_type',t,true)+F('文本','ev_text',ev.text,'','textarea');
+  h+='<div class="section-label">奖励/惩罚</div><div id="ev-rw"></div><button class="btn-sm" onclick="addEvRw()">＋</button>';
+  if(ev.note!==undefined)h+=F('备注','ev_note',ev.note||'');
+  if(ev.energyMax!==undefined)h+=F('能量上限+','ev_em',ev.energyMax||0,'','number');
+  h+=delBtn();
+  setTimeout(function(){
+    var rh='';Object.entries(ev.r||{}).forEach(function(e){rh+=kvEvt(e[0],e[1]);});document.getElementById('ev-rw').innerHTML=rh;
+  },30);return h;
+}
+function kvEvt(k,v){return'<div class="kv-row">'+cat2Sel('','',k)+'<input type="number" value="'+v+'" style="width:60px"><span style="font-size:10px;color:var(--dim)">(负=罚)</span><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button></div>';}
+function addEvRw(){var d=document.createElement('div');d.className='kv-row';d.innerHTML=cat2Sel('','','')+'<input type="number" value="0" style="width:60px"><span style="font-size:10px;color:var(--dim)">(负=罚)</span><button class="btn-sm danger" onclick="this.parentElement.remove()">✕</button>';document.getElementById('ev-rw').appendChild(d);}
+
+// ==================== 自动保存 ====================
+document.getElementById('edit-panel').addEventListener('input',function(e){
+  var el=e.target;if(!el.id)return;
+  if(currentTab==='materials'){var k=MAT_KEYS[selectedIdx];if(el.id==='m_name')MAT_NAMES[k]=el.value;}
+  else if(currentTab==='effects'){if(el.id==='e_name')EFFECTS[selectedIdx].name=el.value;else if(el.id==='e_desc')EFFECTS[selectedIdx].desc=el.value;}
+  else if(currentTab==='facilities'&&el.id==='f_name')FACILITIES[ds().arr[selectedIdx].id].name=el.value;
+  else if(currentTab==='recipes'){var r=RECIPES[selectedIdx];if(el.id==='r_name')r.name=el.value;else if(el.id==='r_type')r.type=el.value;else if(el.id==='r_wb')r.workbench=parseInt(el.value)||0;else if(el.id==='r_sp')r.cost_sp=parseInt(el.value)||0;else if(el.id==='r_stamina')r.cost_stamina=parseInt(el.value)||0;else if(el.id==='r_energy')r.cost_energy=parseInt(el.value)||0;}
+  else if(currentTab==='locations'){var l=LOCATIONS[selectedIdx];if(el.id==='l_name')l.name=el.value;else if(el.id==='l_danger')l.danger=parseInt(el.value)||1;else if(el.id==='l_er')l.eventRate=parseFloat(el.value)||0;else if(el.id==='l_sp')l.special=el.value||undefined;}
+  else if(currentTab==='disasters'){var dd=ds().arr[selectedIdx];if(el.id==='d_name')dd.name=el.value;else if(el.id==='d_penalty')dd.penalty=el.value;else if(el.id==='d_bonus')dd.bonus=el.value;}
+  else if(currentTab==='events'){var p=selectedIdx.split(':'),arr=p[0]==='pos'?POS_EVENTS:p[0]==='neg'?NEG_EVENTS:RARE_EVENTS,ev=arr[parseInt(p[1])];if(el.id==='ev_text')ev.text=el.value;else if(el.id==='ev_note')ev.note=el.value||undefined;else if(el.id==='ev_em')ev.energyMax=parseInt(el.value)||undefined;}
+  renderList();
+});
+
+// ==================== 删除 ====================
+function doDel(){
+  var d=ds();
+  askConfirm('确认删除？',function(ok){if(!ok)return;
+    if(d.type==='materials'){var k=MAT_KEYS[selectedIdx];MAT_KEYS.splice(selectedIdx,1);delete MAT_NAMES[k];delete MAT_CATS[k];}
+    else if(d.type==='effects')EFFECTS.splice(selectedIdx,1);
+    else if(d.type==='facilities')delete FACILITIES[ds().arr[selectedIdx].id];
+    else if(d.type==='recipes')RECIPES.splice(selectedIdx,1);
+    else if(d.type==='locations')LOCATIONS.splice(selectedIdx,1);
+    else if(d.type==='events'){var p=selectedIdx.split(':'),arr=p[0]==='pos'?POS_EVENTS:p[0]==='neg'?NEG_EVENTS:RARE_EVENTS;arr.splice(parseInt(p[1]),1);}
+    selectedIdx=-1;renderList();document.getElementById('edit-panel').innerHTML='<div style="color:var(--dim);text-align:center;padding:60px">← 选择条目编辑</div>';
+  });
+}
+
+// ==================== 直接保存到服务器 ====================
+function saveToServer(){
+  var files={
+    'facilities.js':buildFacJS(),
+    'locations.js':'var LOCATIONS = '+JSON.stringify(LOCATIONS,null,2)+';\n',
+    'disasters.js':'var DISASTERS = '+JSON.stringify(DISASTERS,null,2)+';\n',
+    'events.js':'var POS_EVENTS = '+JSON.stringify(POS_EVENTS,null,2)+';\nvar NEG_EVENTS = '+JSON.stringify(NEG_EVENTS,null,2)+';\nvar RARE_EVENTS = '+JSON.stringify(RARE_EVENTS,null,2)+';\n',
+    'effects.js':'var EFFECTS = '+JSON.stringify(EFFECTS,null,2)+';\n',
+    'crafting.js':'var RECIPES = '+JSON.stringify(RECIPES,null,2)+';\n'
+  };
+  var keys=Object.keys(files),done=0,errors=[];
+  msg('💾 正在保存...');
+  function next(i){
+    if(i>=keys.length){
+      if(errors.length)msg('❌ '+errors.length+'个失败: '+errors.join('; '));
+      else msg('✅ 已保存 '+done+' 个文件到 src/config/');
+      return;
+    }
+    var fn=keys[i];
+    fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:fn,content:files[fn]})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.ok)done++;else errors.push(fn+': '+d.error);
+      next(i+1);
+    })
+    .catch(function(e){errors.push(fn+': '+e.message);next(i+1);});
+  }
+  next(0);
+}
+
+// ==================== 下载全部 config 文件 ====================
+function downloadAll(){
+  var files={
+    'facilities.js':buildFacJS(),
+    'locations.js':'var LOCATIONS = '+JSON.stringify(LOCATIONS,null,2)+';\n',
+    'disasters.js':'var DISASTERS = '+JSON.stringify(DISASTERS,null,2)+';\n',
+    'events.js':'var POS_EVENTS = '+JSON.stringify(POS_EVENTS,null,2)+';\nvar NEG_EVENTS = '+JSON.stringify(NEG_EVENTS,null,2)+';\nvar RARE_EVENTS = '+JSON.stringify(RARE_EVENTS,null,2)+';\n',
+    'effects.js':'var EFFECTS = '+JSON.stringify(EFFECTS,null,2)+';\n',
+    'crafting.js':'var RECIPES = '+JSON.stringify(RECIPES,null,2)+';\n'
+  };
+  Object.entries(files).forEach(function(e){
+    download(e[0],e[1]);
+  });
+  msg('✅ 已触发 6 个文件下载，请全部放入 src/config/');
+}
+function download(fn,content){
+  var b=new Blob([content],{type:'text/javascript'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+}
+
+// ==================== 导出（后备） ====================
+function buildFacJS(){
+  var clean={};
+  Object.entries(FACILITIES).forEach(function(e){
+    var f=e[1],o={name:f.name,lvs:f.lvs,sp:f.sp,cost:{},daily_output:{},daily_input:{},effects:{}};
+    copyNonZeroArr(f.cost,o.cost);copyNonZeroArr(f.daily_output,o.daily_output);copyNonZeroArr(f.daily_input,o.daily_input);copyNonZeroArr(f.effects,o.effects);
+    if(!Object.keys(o.daily_output).length)delete o.daily_output;
+    if(!Object.keys(o.daily_input).length)delete o.daily_input;
+    if(!Object.keys(o.effects).length)delete o.effects;
+    clean[e[0]]=o;
+  });
+  return 'var MAT_NAMES='+JSON.stringify(MAT_NAMES)+';\nvar MAT_KEYS='+JSON.stringify(MAT_KEYS)+';\nvar MAT_CATS='+JSON.stringify(MAT_CATS)+';\nvar CATEGORIES='+JSON.stringify(CATEGORIES.filter(function(c){return c!=='原材料';}))+';\nvar FACILITIES='+JSON.stringify(clean,null,2)+';\n';
+}
+function copyNonZeroArr(src,dst){Object.entries(src||{}).forEach(function(e){var a=trimA(e[1]);if(a)dst[e[0]]=a;});}
+function trimA(a){var e=a.length-1;while(e>=0&&a[e]===0)e--;return e<0?null:a.slice(0,e+1);}
+
+// ==================== 导出（后备） ====================
+function exportAll(){
+  var c='// Deep Haven — '+new Date().toISOString().slice(0,10)+'\n';
+  c+='// ===== facilities.js =====\n'+buildFacJS()+'\n';
+  c+='// ===== effects.js =====\nvar EFFECTS = '+JSON.stringify(EFFECTS,null,2)+';\n\n';
+  c+='// ===== crafting.js =====\nvar RECIPES = '+JSON.stringify(RECIPES,null,2)+';\n\n';
+  c+='// ===== locations.js =====\nvar LOCATIONS = '+JSON.stringify(LOCATIONS,null,2)+';\n\n';
+  c+='// ===== disasters.js =====\nvar DISASTERS = '+JSON.stringify(DISASTERS,null,2)+';\n\n';
+  c+='// ===== events.js =====\nvar POS_EVENTS = '+JSON.stringify(POS_EVENTS,null,2)+';\nvar NEG_EVENTS = '+JSON.stringify(NEG_EVENTS,null,2)+';\nvar RARE_EVENTS = '+JSON.stringify(RARE_EVENTS,null,2)+';\n';
+  download('deephaven_data.js',c);
+}
+
+renderList();
+</script>
+</body>
+</html>

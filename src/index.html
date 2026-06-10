@@ -266,7 +266,9 @@
 </style>
 <!-- 配置文件（数据驱动，改数值只改这些文件） -->
 <script src="config/disasters.js"></script>
+<script src="config/effects.js"></script>
 <script src="config/facilities.js"></script>
+<script src="config/crafting.js"></script>
 <script src="config/locations.js"></script>
 <script src="config/events.js"></script>
 </head>
@@ -317,11 +319,18 @@
     <button onclick="openExplore()">🗺️ 外出探索</button>
     <button onclick="openBuild()">🏗️ 建造升级</button>
     <button onclick="doRest()">😴 休息恢复</button>
+    <button onclick="openCraft()" id="btn-craft" style="display:none">🔨 制造</button>
+    <button onclick="openSaveLoad()">💾 存档</button>
     <button onclick="openDispatch()" id="btn-dispatch" style="display:none">👥 派遣幸存者</button>
   </div>
 
   <!-- 结算按钮 -->
   <button id="end-day-btn" onclick="endDay()">🌙 结束今天</button>
+
+  <!-- GM 调试 -->
+  <div style="text-align:center;margin-top:8px">
+    <button onclick="openGM()" style="font-size:11px;padding:4px 12px;background:transparent;color:var(--dim);border:1px dashed var(--border);border-radius:6px;cursor:pointer;font-family:inherit">🔧 GM 调试</button>
+  </div>
 
   <!-- 日志 -->
   <div id="log-box">
@@ -358,33 +367,25 @@ function currentDisaster() {
 }
 
 function calcComfort() {
-  let total = 1;  // 基础生存舒适度
+  let total = 1;
   for (const [fid, lv] of Object.entries(G.facilities)) {
     const f = FACILITIES[fid];
-    if (lv > 0 && f && f.comfort) total += f.comfort[lv - 1];
+    if (lv > 0 && f && f.effects && f.effects.comfort) total += (f.effects.comfort[lv - 1] || 0);
   }
   return total;
 }
 
-function foodSavePct() {
-  // Phase 1 无厨房，返回 0
-  return 0;
+function getEffect(fid, effectId) {
+  const lv = G.facilities[fid];
+  if (!lv || lv <= 0) return 0;
+  const f = FACILITIES[fid];
+  return (f && f.effects && f.effects[effectId]) ? (f.effects[effectId][lv - 1] || 0) : 0;
 }
 
-function dailyHeal() {
-  // Phase 1 无医疗室，返回 0
-  return 0;
-}
-
-function dailyWaterOut() {
-  if (G.facilities.water) return FACILITIES.water.daily_water[G.facilities.water - 1];
-  return 0;
-}
-
-function calcDefense() {
-  if (G.facilities.defense) return FACILITIES.defense.defense[G.facilities.defense - 1];
-  return 0;
-}
+function foodSavePct() { return getEffect('kitchen', 'food_save'); }
+function dailyHeal() { return getEffect('medical', 'heal'); }
+function dailyWaterOut() { return getEffect('water', 'water_out'); }
+function calcDefense() { return getEffect('defense', 'defense'); }
 
 // ==================== UI 更新 ====================
 function updateUI() {
@@ -437,6 +438,9 @@ function updateUI() {
 
   // 幸存者按钮
   document.getElementById('btn-dispatch').style.display = (G.day >= 30 && G.survivors.length > 0) ? '' : 'none';
+  // 制造按钮：工作台 ≥ 1 且 RECIPES 有数据时显示
+  var wbLv = G.facilities.workbench || 0;
+  document.getElementById('btn-craft').style.display = (wbLv >= 1) ? '' : 'none';
 }
 
 function addLog(msg, cls = '') {
@@ -603,7 +607,55 @@ function doBuild(idx) {
   updateUI();
   if (G.actionSlots <= 0) { addLog('🌙 天色已晚，该结束今天了'); }
 }
+// ==================== 制造 ====================
+function openCraft() {
+  var wbLv = G.facilities.workbench || 0;
+  var html = '<h3>🔨 制造</h3>';
+  html += '<div style="font-size:11px;color:var(--dim);margin-bottom:10px">当前工作台: Lv.' + wbLv + '</div>';
+  var available = (typeof RECIPES !== 'undefined' ? RECIPES : []).filter(function(r){ return (r.workbench || 0) <= wbLv; });
+  if (available.length === 0) {
+    html += '<div style="color:var(--dim);text-align:center;padding:20px">没有可制造的配方</div>';
+  } else {
+    available.forEach(function(r, i){
+      var costs = Object.entries(r.cost_materials || {}).map(function(e){ return (MAT_NAMES[e[0]] || e[0]) + 'x' + e[1]; }).join(', ');
+      var extra = [];
+      if (r.cost_sp) extra.push('SP:' + r.cost_sp);
+      if (r.cost_stamina) extra.push('体力:' + r.cost_stamina);
+      if (r.cost_energy) extra.push('能量:' + r.cost_energy);
+      var outputs = Object.entries(r.output || {}).map(function(e){ return (MAT_NAMES[e[0]] || e[0]) + 'x' + e[1]; }).join(', ');
+      var canCraft = true;
+      for (var k in r.cost_materials) { if ((G.materials[k] || 0) < r.cost_materials[k]) { canCraft = false; break; } }
+      if (r.cost_sp && G.sp < r.cost_sp) canCraft = false;
+      if (r.cost_stamina && G.stamina < r.cost_stamina) canCraft = false;
+      html += '<div class="item"' + (canCraft ? ' onclick="doCraft(' + i + ')" style="cursor:pointer"' : ' style="opacity:0.5"') + '>';
+      html += '<div class="item-name">' + r.name + ' <span style="font-size:10px;color:var(--dim)">[' + (r.type || '材料') + ']</span></div>';
+      html += '<div class="item-cost">📥 ' + (costs || '无') + (extra.length ? ' | ' + extra.join(', ') : '') + '</div>';
+      html += '<div class="item-cost" style="color:var(--success)">📤 ' + outputs + '</div>';
+      html += '</div>';
+    });
+  }
+  html += '<button class="close-btn" onclick="closeModal()">关闭</button>';
+  showModal(html);
+  window._craftList = available;
+}
 
+function doCraft(idx) {
+  closeModal();
+  if (G.actionSlots <= 0) return;
+  var r = window._craftList[idx];
+  if (!r) return;
+  for (var k in r.cost_materials) { if ((G.materials[k] || 0) < r.cost_materials[k]) { addLog('❌ 材料不足', 'log-bad'); updateUI(); return; } }
+  if (r.cost_sp && G.sp < r.cost_sp) { addLog('❌ SP 不足', 'log-bad'); updateUI(); return; }
+  if (r.cost_stamina && G.stamina < r.cost_stamina) { addLog('❌ 体力不足', 'log-bad'); updateUI(); return; }
+  G.actionSlots -= 1;
+  for (var k in r.cost_materials) G.materials[k] -= r.cost_materials[k];
+  if (r.cost_sp) G.sp -= r.cost_sp;
+  if (r.cost_stamina) G.stamina -= r.cost_stamina;
+  for (var k in r.output) G.materials[k] = (G.materials[k] || 0) + r.output[k];
+  addLog('🔨 成功制造: ' + r.name, 'log-build');
+  updateUI();
+  if (G.actionSlots <= 0) { addLog('🌙 天色已晚，该结束今天了'); }
+}
 // ==================== 休息 ====================
 function doRest() {
   if (G.actionSlots <= 0) return;
@@ -704,8 +756,36 @@ function endDay() {
   G.water -= waterCost;
   addLog(`🍞 食物 -${foodCost}（剩${G.food}天） | 💧 水 -${waterCost}（剩${G.water}天）`);
 
+  // 设施每日产出/消耗
+  for (const [fid, lv] of Object.entries(G.facilities)) {
+    if (lv <= 0) continue;
+    const f = FACILITIES[fid];
+    // 产出
+    if (f.daily_output) {
+      for (const [resKey, amounts] of Object.entries(f.daily_output)) {
+        const amt = amounts[lv - 1] || 0;
+        if (amt > 0) {
+          if (resKey === 'food') G.food += amt;
+          else if (resKey === 'water') G.water += amt;
+          else G.materials[resKey] = (G.materials[resKey] || 0) + amt;
+        }
+      }
+    }
+    // 消耗
+    if (f.daily_input) {
+      for (const [resKey, amounts] of Object.entries(f.daily_input)) {
+        const amt = amounts[lv - 1] || 0;
+        if (amt > 0) {
+          if (resKey === 'food') G.food = Math.max(0, G.food - amt);
+          else if (resKey === 'water') G.water = Math.max(0, G.water - amt);
+          else G.materials[resKey] = Math.max(0, (G.materials[resKey] || 0) - amt);
+        }
+      }
+    }
+  }
+
   const wo = dailyWaterOut();
-  if (wo > 0) { G.water += wo; addLog(`💧 净水系统产水 +${wo}`); }
+  if (wo > 0) addLog(`💧 净水系统产水 +${wo}`);
 
   const heal = dailyHeal();
   if (heal > 0) { G.health = Math.min(100, G.health + heal); addLog(`🏥 医疗室回血 +${heal}`); }
@@ -766,7 +846,163 @@ function triggerMilestones() {
 function randInt(lo, hi) { return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// ==================== 存档系统 ====================
+function openSaveLoad() {
+  let html = '<h3>💾 存档管理</h3>';
+  for (let i = 1; i <= 5; i++) {
+    const key = 'deephaven_save_' + i;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try {
+        const meta = JSON.parse(raw);
+        html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="item-name">📁 槽位 ${i} — Day ${meta.day} | ${meta.disaster || '?'}</div>
+            <div class="item-cost">🏠 舒适:${meta.comfort || '?'} | 💰 SP:${meta.sp || 0} | ⚡ 能量:${meta.energy || 0}</div>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button onclick="loadGame(${i});closeModal()" style="padding:4px 8px;font-size:11px;cursor:pointer;background:var(--accent);color:var(--bg);border:none;border-radius:4px">读档</button>
+            <button onclick="saveGame(${i});closeModal()" style="padding:4px 8px;font-size:11px;cursor:pointer;background:#1e2d40;color:var(--text);border:1px solid var(--border);border-radius:4px">覆盖</button>
+            <button onclick="deleteSave(${i})" style="padding:4px 8px;font-size:11px;cursor:pointer;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:4px">✕</button>
+          </div>
+        </div>`;
+      } catch(e) {
+        html += `<div class="item"><span style="color:var(--danger)">📁 槽位 ${i} — 存档损坏</span><button onclick="deleteSave(${i})" style="float:right;color:var(--danger)">✕</button></div>`;
+      }
+    } else {
+      html += `<div class="item" onclick="saveGame(${i});closeModal()" style="cursor:pointer">
+        <div class="item-name">📁 槽位 ${i} — 空</div>
+        <div class="item-cost">点击存档</div>
+      </div>`;
+    }
+  }
+  html += '<button class="close-btn" onclick="closeModal()">关闭</button>';
+  showModal(html);
+}
+
+function saveGame(slot) {
+  const key = 'deephaven_save_' + slot;
+  const data = JSON.parse(JSON.stringify(G));  // 深拷贝
+  data._disasterName = currentDisaster().name;
+  localStorage.setItem(key, JSON.stringify(data));
+  addLog(`💾 已保存到槽位 ${slot}（Day ${G.day}）`);
+  updateUI();
+}
+
+function loadGame(slot) {
+  const key = 'deephaven_save_' + slot;
+  const raw = localStorage.getItem(key);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    // 恢复状态（保留函数引用的字段）
+    Object.keys(G).forEach(k => { if (k !== 'gameOver') delete G[k]; });
+    Object.assign(G, data);
+    G.gameOver = false;
+    addLog(`📂 已从槽位 ${slot} 读档（Day ${G.day}）`, 'log-event');
+    updateUI();
+  } catch(e) {
+    addLog('❌ 读档失败', 'log-bad');
+  }
+}
+
+function deleteSave(slot) {
+  if (!confirm('确认删除槽位 ' + slot + ' 的存档？')) return;
+  localStorage.removeItem('deephaven_save_' + slot);
+  addLog(`🗑️ 槽位 ${slot} 存档已删除`);
+  closeModal();
+}
+
+// ==================== GM 调试菜单 ====================
+function openGM() {
+  let html = '<h3>🔧 GM 调试菜单</h3>';
+  html += '<div style="font-size:11px;color:var(--dim);margin-bottom:10px">⚠️ 仅用于开发调试，正式版将移除</div>';
+
+  // 材料
+  html += '<div style="margin-bottom:8px;font-weight:bold;color:var(--accent)">📦 加材料</div>';
+  MAT_KEYS.forEach(k => {
+    html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+      <span>${MAT_NAMES[k]}</span>
+      <span style="display:flex;gap:4px">
+        <button onclick="gmAdd('${k}',1)" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+1</button>
+        <button onclick="gmAdd('${k}',10)" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+10</button>
+        <button onclick="gmAdd('${k}',100)" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+100</button>
+      </span>
+    </div>`;
+  });
+
+  // 资源
+  html += '<div style="margin-bottom:8px;font-weight:bold;color:var(--accent);margin-top:12px">💰 资源</div>';
+  html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+    <span>💰 SP</span>
+    <span style="display:flex;gap:4px">
+      <button onclick="G.sp+=50;closeModal();updateUI()" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--gold);border:1px solid var(--border);border-radius:3px">+50</button>
+      <button onclick="G.sp+=500;closeModal();updateUI()" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--gold);border:1px solid var(--border);border-radius:3px">+500</button>
+    </span>
+  </div>`;
+  html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+    <span>⚡ 系统能量</span>
+    <span style="display:flex;gap:4px">
+      <button onclick="G.energy=Math.min(G.maxEnergy,G.energy+10);closeModal();updateUI()" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--energy);border:1px solid var(--border);border-radius:3px">+10</button>
+      <button onclick="G.energy=Math.min(G.maxEnergy,G.energy+50);closeModal();updateUI()" style="padding:3px 8px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--energy);border:1px solid var(--border);border-radius:3px">+50</button>
+    </span>
+  </div>`;
+
+  // 健康体力
+  html += '<div style="margin-bottom:8px;font-weight:bold;color:var(--accent);margin-top:12px">❤️ 状态</div>';
+  html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+    <span>❤️ 满血 + 满体力</span>
+    <button onclick="G.health=100;G.stamina=G.maxStamina;closeModal();updateUI()" style="padding:4px 12px;font-size:11px;cursor:pointer;background:var(--success);color:var(--bg);border:none;border-radius:4px">恢复</button>
+  </div>`;
+  html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+    <span>🍞💧 食物+水各+10</span>
+    <button onclick="G.food+=10;G.water+=10;closeModal();updateUI()" style="padding:4px 12px;font-size:11px;cursor:pointer;background:var(--success);color:var(--bg);border:none;border-radius:4px">补充</button>
+  </div>`;
+
+  // 天数
+  html += '<div style="margin-bottom:8px;font-weight:bold;color:var(--accent);margin-top:12px">📅 天数跳转</div>';
+  html += `<div class="item" style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:4px">
+    <span>当前 Day ${G.day}</span>
+    <span style="display:flex;gap:4px">
+      <button onclick="skipDays(1)" style="padding:3px 10px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+1天</button>
+      <button onclick="skipDays(10)" style="padding:3px 10px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+10天</button>
+      <button onclick="skipDays(30)" style="padding:3px 10px;font-size:11px;cursor:pointer;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:3px">+30天</button>
+    </span>
+  </div>`;
+
+  html += '<button class="close-btn" onclick="closeModal()">关闭</button>';
+  showModal(html);
+}
+
+function gmAdd(matKey, amount) {
+  G.materials[matKey] = (G.materials[matKey] || 0) + amount;
+  addLog(`🔧 GM: ${MAT_NAMES[matKey]} +${amount}`);
+  closeModal();
+  updateUI();
+}
+
+function skipDays(n) {
+  for (let i = 0; i < n; i++) {
+    G.day += 1;
+    G.stamina = G.maxStamina;
+    G.actionSlots = G.maxActionSlots;
+    // 快速结算：只扣基础消耗，不触发事件
+    G.food = Math.max(0, G.food - 1);
+    G.water = Math.max(0, G.water - 1);
+    if (G.food <= 0) G.health = Math.max(0, G.health - 20);
+    if (G.water <= 0) G.health = Math.max(0, G.health - 15);
+    if (G.health <= 0) { G.gameOver = true; break; }
+    G.sp += 10 + calcComfort() * 3;
+    G.energy = Math.min(G.maxEnergy, G.energy + G.energyRegen);
+    triggerMilestones();
+  }
+  addLog(`🔧 GM: 快进了 ${n} 天（Day ${G.day}）`);
+  closeModal();
+  updateUI();
+}
+
 // ==================== 初始化 ====================
+// 自动从槽位1读取（如果有的话，作为自动存档提示）
 updateUI();
 </script>
 </body>
